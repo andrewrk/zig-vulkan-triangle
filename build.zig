@@ -5,6 +5,7 @@ pub fn build(b: *Builder) void {
     const exe = b.addExecutable("saw", "src/main.zig");
     exe.setBuildMode(mode);
     exe.linkSystemLibrary("glfw");
+    exe.linkSystemLibrary("vulkan");
     exe.linkSystemLibrary("c");
 
     b.default_step.dependOn(&exe.step);
