@@ -5869,31 +5869,28 @@ pub const enum_VkDebugReportObjectTypeEXT = extern enum {
     VK_DEBUG_REPORT_OBJECT_TYPE_VALIDATION_CACHE_EXT_EXT = 33,
     VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_YCBCR_CONVERSION_EXT = 1000156000,
     VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_EXT = 1000085000,
-    VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_KHR_EXT = 1000085000,
-    VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_YCBCR_CONVERSION_KHR_EXT = 1000156000,
-    VK_DEBUG_REPORT_OBJECT_TYPE_BEGIN_RANGE_EXT = 0,
-    VK_DEBUG_REPORT_OBJECT_TYPE_END_RANGE_EXT = 33,
     VK_DEBUG_REPORT_OBJECT_TYPE_RANGE_SIZE_EXT = 34,
     VK_DEBUG_REPORT_OBJECT_TYPE_MAX_ENUM_EXT = 2147483647,
 };
 pub const VkDebugReportObjectTypeEXT = enum_VkDebugReportObjectTypeEXT;
-pub const VK_DEBUG_REPORT_INFORMATION_BIT_EXT = enum_VkDebugReportFlagBitsEXT.VK_DEBUG_REPORT_INFORMATION_BIT_EXT;
-pub const VK_DEBUG_REPORT_WARNING_BIT_EXT = enum_VkDebugReportFlagBitsEXT.VK_DEBUG_REPORT_WARNING_BIT_EXT;
-pub const VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT = enum_VkDebugReportFlagBitsEXT.VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT;
-pub const VK_DEBUG_REPORT_ERROR_BIT_EXT = enum_VkDebugReportFlagBitsEXT.VK_DEBUG_REPORT_ERROR_BIT_EXT;
-pub const VK_DEBUG_REPORT_DEBUG_BIT_EXT = enum_VkDebugReportFlagBitsEXT.VK_DEBUG_REPORT_DEBUG_BIT_EXT;
-pub const VK_DEBUG_REPORT_FLAG_BITS_MAX_ENUM_EXT = enum_VkDebugReportFlagBitsEXT.VK_DEBUG_REPORT_FLAG_BITS_MAX_ENUM_EXT;
-pub const enum_VkDebugReportFlagBitsEXT = extern enum {
-    VK_DEBUG_REPORT_INFORMATION_BIT_EXT = 1,
-    VK_DEBUG_REPORT_WARNING_BIT_EXT = 2,
-    VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT = 4,
-    VK_DEBUG_REPORT_ERROR_BIT_EXT = 8,
-    VK_DEBUG_REPORT_DEBUG_BIT_EXT = 16,
-    VK_DEBUG_REPORT_FLAG_BITS_MAX_ENUM_EXT = 2147483647,
-};
+pub const VK_DEBUG_REPORT_INFORMATION_BIT_EXT = 1;
+pub const VK_DEBUG_REPORT_WARNING_BIT_EXT = 2;
+pub const VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT = 4;
+pub const VK_DEBUG_REPORT_ERROR_BIT_EXT = 8;
+pub const VK_DEBUG_REPORT_DEBUG_BIT_EXT = 16;
+pub const enum_VkDebugReportFlagBitsEXT = c_int;
 pub const VkDebugReportFlagBitsEXT = enum_VkDebugReportFlagBitsEXT;
 pub const VkDebugReportFlagsEXT = VkFlags;
-pub const PFN_vkDebugReportCallbackEXT = ?extern fn (VkDebugReportFlagsEXT, VkDebugReportObjectTypeEXT, u64, usize, i32, ?[*]const u8, ?[*]const u8, ?*c_void) VkBool32;
+pub const PFN_vkDebugReportCallbackEXT = extern fn (
+    VkDebugReportFlagsEXT,
+    VkDebugReportObjectTypeEXT,
+    u64,
+    usize,
+    i32,
+    [*]const u8,
+    [*]const u8,
+    ?*c_void,
+) VkBool32;
 pub const struct_VkDebugReportCallbackCreateInfoEXT = extern struct {
     sType: VkStructureType,
     pNext: ?*const c_void,
@@ -5902,7 +5899,7 @@ pub const struct_VkDebugReportCallbackCreateInfoEXT = extern struct {
     pUserData: ?*c_void,
 };
 pub const VkDebugReportCallbackCreateInfoEXT = struct_VkDebugReportCallbackCreateInfoEXT;
-pub const PFN_vkCreateDebugReportCallbackEXT = ?extern fn (VkInstance, ?[*]const VkDebugReportCallbackCreateInfoEXT, ?[*]const VkAllocationCallbacks, ?[*]VkDebugReportCallbackEXT) VkResult;
+pub const PFN_vkCreateDebugReportCallbackEXT = ?extern fn (VkInstance, ?*const VkDebugReportCallbackCreateInfoEXT, ?*const VkAllocationCallbacks, ?*VkDebugReportCallbackEXT) VkResult;
 pub const PFN_vkDestroyDebugReportCallbackEXT = ?extern fn (VkInstance, VkDebugReportCallbackEXT, ?[*]const VkAllocationCallbacks) void;
 pub const PFN_vkDebugReportMessageEXT = ?extern fn (VkInstance, VkDebugReportFlagsEXT, VkDebugReportObjectTypeEXT, u64, usize, i32, ?[*]const u8, ?[*]const u8) void;
 pub extern fn vkCreateDebugReportCallbackEXT(instance: VkInstance, pCreateInfo: ?[*]const VkDebugReportCallbackCreateInfoEXT, pAllocator: ?[*]const VkAllocationCallbacks, pCallback: ?[*]VkDebugReportCallbackEXT) VkResult;

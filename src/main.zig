@@ -22,7 +22,7 @@ pub fn main() !void {
     c.glfwWindowHint(c.GLFW_CLIENT_API, c.GLFW_NO_API);
     c.glfwWindowHint(c.GLFW_RESIZABLE, c.GLFW_FALSE);
 
-    const window = c.glfwCreateWindow(WIDTH, HEIGHT, c"SAW", null, null) orelse return error.GlfwCreateWindowFailed;
+    const window = c.glfwCreateWindow(WIDTH, HEIGHT, c"Zig Vulkan Triangle", null, null) orelse return error.GlfwCreateWindowFailed;
     defer c.glfwDestroyWindow(window);
 
     const allocator = std.heap.c_allocator;
@@ -42,11 +42,12 @@ var renderFinishedSemaphores: std.ArrayList(c.VkSemaphore) = undefined;
 var inflightFences: std.ArrayList(c.VkFence) = undefined;
 var currentFrame: usize = 0;
 var instance: c.VkInstance = undefined;
+var callback: c.VkDebugReportCallbackEXT = undefined;
 
 fn initVulkan(allocator: *Allocator) !void {
     try createInstance(allocator);
+    try setupDebugCallback();
     // TODO
-    //setupDebugCallback();
     //createSurface();
     //pickPhysicalDevice();
     //createLogicalDevice();
@@ -58,6 +59,51 @@ fn initVulkan(allocator: *Allocator) !void {
     //createCommandPool();
     //createCommandBuffers();
     //createSyncObjects();
+}
+
+// TODO https://github.com/ziglang/zig/issues/661
+// Doesn't work on Windows until the above is fixed, because
+// this function needs to be stdcallcc on Windows.
+extern fn debugCallback(
+    flags: c.VkDebugReportFlagsEXT,
+    objType: c.VkDebugReportObjectTypeEXT,
+    obj: u64,
+    location: usize,
+    code: i32,
+    layerPrefix: [*]const u8,
+    msg: [*]const u8,
+    userData: ?*c_void,
+) c.VkBool32 {
+    std.debug.warn("validation layer: {s}\n", msg);
+    return c.VK_FALSE;
+}
+
+fn setupDebugCallback() !void {
+    if (!enableValidationLayers) return;
+
+    var createInfo = c.VkDebugReportCallbackCreateInfoEXT{
+        .sType = c.VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,
+        .flags = c.VK_DEBUG_REPORT_ERROR_BIT_EXT | c.VK_DEBUG_REPORT_WARNING_BIT_EXT,
+        .pfnCallback = debugCallback,
+        .pNext = null,
+        .pUserData = null,
+    };
+
+    if (CreateDebugReportCallbackEXT(&createInfo, null, &callback) != c.VK_SUCCESS) {
+        return error.FailedToSetUpDebugCallback;
+    }
+}
+
+fn CreateDebugReportCallbackEXT(
+    pCreateInfo: *const c.VkDebugReportCallbackCreateInfoEXT,
+    pAllocator: ?*const c.VkAllocationCallbacks,
+    pCallback: *c.VkDebugReportCallbackEXT,
+) c.VkResult {
+    const func = @ptrCast(c.PFN_vkCreateDebugReportCallbackEXT, c.vkGetInstanceProcAddr(
+        instance,
+        c"vkCreateDebugReportCallbackEXT",
+    )) orelse return c.VK_ERROR_EXTENSION_NOT_PRESENT;
+    return func(instance, pCreateInfo, pAllocator, pCallback);
 }
 
 fn createInstance(allocator: *Allocator) !void {
