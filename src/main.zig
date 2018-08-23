@@ -26,7 +26,7 @@ pub fn main() !void {
     defer c.glfwDestroyWindow(window);
 
     const allocator = std.heap.c_allocator;
-    try initVulkan(allocator);
+    try initVulkan(allocator, window);
 
     while (c.glfwWindowShouldClose(window) == 0) {
         c.glfwPollEvents();
@@ -43,12 +43,13 @@ var inflightFences: std.ArrayList(c.VkFence) = undefined;
 var currentFrame: usize = 0;
 var instance: c.VkInstance = undefined;
 var callback: c.VkDebugReportCallbackEXT = undefined;
+var surface: c.VkSurfaceKHR = undefined;
 
-fn initVulkan(allocator: *Allocator) !void {
+fn initVulkan(allocator: *Allocator, window: *c.GLFWwindow) !void {
     try createInstance(allocator);
     try setupDebugCallback();
+    try createSurface(window);
     // TODO
-    //createSurface();
     //pickPhysicalDevice();
     //createLogicalDevice();
     //createSwapChain();
@@ -59,6 +60,12 @@ fn initVulkan(allocator: *Allocator) !void {
     //createCommandPool();
     //createCommandBuffers();
     //createSyncObjects();
+}
+
+fn createSurface(window: *c.GLFWwindow) !void {
+    if (c.glfwCreateWindowSurface(instance, window, null, &surface) != c.VK_SUCCESS) {
+        return error.FailedToCreateWindowSurface;
+    }
 }
 
 // TODO https://github.com/ziglang/zig/issues/661

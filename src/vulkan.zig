@@ -5120,7 +5120,7 @@ pub extern fn vkGetPhysicalDeviceExternalFenceProperties(physicalDevice: VkPhysi
 pub extern fn vkGetPhysicalDeviceExternalSemaphoreProperties(physicalDevice: VkPhysicalDevice, pExternalSemaphoreInfo: ?[*]const VkPhysicalDeviceExternalSemaphoreInfo, pExternalSemaphoreProperties: ?[*]VkExternalSemaphoreProperties) void;
 pub extern fn vkGetDescriptorSetLayoutSupport(device: VkDevice, pCreateInfo: ?[*]const VkDescriptorSetLayoutCreateInfo, pSupport: ?[*]VkDescriptorSetLayoutSupport) void;
 pub const struct_VkSurfaceKHR_T = @OpaqueType();
-pub const VkSurfaceKHR = ?*struct_VkSurfaceKHR_T;
+pub const VkSurfaceKHR = *struct_VkSurfaceKHR_T;
 pub const VK_COLOR_SPACE_SRGB_NONLINEAR_KHR = enum_VkColorSpaceKHR.VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 pub const VK_COLOR_SPACE_DISPLAY_P3_NONLINEAR_EXT = enum_VkColorSpaceKHR.VK_COLOR_SPACE_DISPLAY_P3_NONLINEAR_EXT;
 pub const VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT = enum_VkColorSpaceKHR.VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT;
@@ -7217,7 +7217,7 @@ pub extern fn glfwVulkanSupported() c_int;
 pub extern fn glfwGetRequiredInstanceExtensions(count: *u32) [*]const [*]const u8;
 pub extern fn glfwGetInstanceProcAddress(instance: VkInstance, procname: ?[*]const u8) GLFWvkproc;
 pub extern fn glfwGetPhysicalDevicePresentationSupport(instance: VkInstance, device: VkPhysicalDevice, queuefamily: u32) c_int;
-pub extern fn glfwCreateWindowSurface(instance: VkInstance, window: ?*GLFWwindow, allocator: ?[*]const VkAllocationCallbacks, surface: ?[*]VkSurfaceKHR) VkResult;
+pub extern fn glfwCreateWindowSurface(instance: VkInstance, window: *GLFWwindow, allocator: ?*const VkAllocationCallbacks, surface: *VkSurfaceKHR) VkResult;
 pub fn zig_VK_MAKE_VERSION(major: u32, minor: u32, patch: u32) u32 {
     return ((major << u5(22)) | (minor << u5(12))) | patch;
 }
