@@ -1343,42 +1343,6 @@ pub const enum_VkFormat = extern enum {
     VK_FORMAT_PVRTC1_4BPP_SRGB_BLOCK_IMG = 1000054005,
     VK_FORMAT_PVRTC2_2BPP_SRGB_BLOCK_IMG = 1000054006,
     VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG = 1000054007,
-    VK_FORMAT_G8B8G8R8_422_UNORM_KHR = 1000156000,
-    VK_FORMAT_B8G8R8G8_422_UNORM_KHR = 1000156001,
-    VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM_KHR = 1000156002,
-    VK_FORMAT_G8_B8R8_2PLANE_420_UNORM_KHR = 1000156003,
-    VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM_KHR = 1000156004,
-    VK_FORMAT_G8_B8R8_2PLANE_422_UNORM_KHR = 1000156005,
-    VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM_KHR = 1000156006,
-    VK_FORMAT_R10X6_UNORM_PACK16_KHR = 1000156007,
-    VK_FORMAT_R10X6G10X6_UNORM_2PACK16_KHR = 1000156008,
-    VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16_KHR = 1000156009,
-    VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16_KHR = 1000156010,
-    VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16_KHR = 1000156011,
-    VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16_KHR = 1000156012,
-    VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16_KHR = 1000156013,
-    VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16_KHR = 1000156014,
-    VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16_KHR = 1000156015,
-    VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16_KHR = 1000156016,
-    VK_FORMAT_R12X4_UNORM_PACK16_KHR = 1000156017,
-    VK_FORMAT_R12X4G12X4_UNORM_2PACK16_KHR = 1000156018,
-    VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16_KHR = 1000156019,
-    VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16_KHR = 1000156020,
-    VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16_KHR = 1000156021,
-    VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16_KHR = 1000156022,
-    VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16_KHR = 1000156023,
-    VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16_KHR = 1000156024,
-    VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16_KHR = 1000156025,
-    VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16_KHR = 1000156026,
-    VK_FORMAT_G16B16G16R16_422_UNORM_KHR = 1000156027,
-    VK_FORMAT_B16G16R16G16_422_UNORM_KHR = 1000156028,
-    VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM_KHR = 1000156029,
-    VK_FORMAT_G16_B16R16_2PLANE_420_UNORM_KHR = 1000156030,
-    VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM_KHR = 1000156031,
-    VK_FORMAT_G16_B16R16_2PLANE_422_UNORM_KHR = 1000156032,
-    VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM_KHR = 1000156033,
-    VK_FORMAT_BEGIN_RANGE = 0,
-    VK_FORMAT_END_RANGE = 184,
     VK_FORMAT_RANGE_SIZE = 185,
     VK_FORMAT_MAX_ENUM = 2147483647,
 };
@@ -2384,20 +2348,12 @@ pub const enum_VkSampleCountFlagBits = extern enum {
 };
 pub const VkSampleCountFlagBits = enum_VkSampleCountFlagBits;
 pub const VkSampleCountFlags = VkFlags;
-pub const VK_QUEUE_GRAPHICS_BIT = enum_VkQueueFlagBits.VK_QUEUE_GRAPHICS_BIT;
-pub const VK_QUEUE_COMPUTE_BIT = enum_VkQueueFlagBits.VK_QUEUE_COMPUTE_BIT;
-pub const VK_QUEUE_TRANSFER_BIT = enum_VkQueueFlagBits.VK_QUEUE_TRANSFER_BIT;
-pub const VK_QUEUE_SPARSE_BINDING_BIT = enum_VkQueueFlagBits.VK_QUEUE_SPARSE_BINDING_BIT;
-pub const VK_QUEUE_PROTECTED_BIT = enum_VkQueueFlagBits.VK_QUEUE_PROTECTED_BIT;
-pub const VK_QUEUE_FLAG_BITS_MAX_ENUM = enum_VkQueueFlagBits.VK_QUEUE_FLAG_BITS_MAX_ENUM;
-pub const enum_VkQueueFlagBits = extern enum {
-    VK_QUEUE_GRAPHICS_BIT = 1,
-    VK_QUEUE_COMPUTE_BIT = 2,
-    VK_QUEUE_TRANSFER_BIT = 4,
-    VK_QUEUE_SPARSE_BINDING_BIT = 8,
-    VK_QUEUE_PROTECTED_BIT = 16,
-    VK_QUEUE_FLAG_BITS_MAX_ENUM = 2147483647,
-};
+pub const VK_QUEUE_GRAPHICS_BIT = 1;
+pub const VK_QUEUE_COMPUTE_BIT = 2;
+pub const VK_QUEUE_TRANSFER_BIT = 4;
+pub const VK_QUEUE_SPARSE_BINDING_BIT = 8;
+pub const VK_QUEUE_PROTECTED_BIT = 16;
+pub const enum_VkQueueFlagBits = c_int;
 pub const VkQueueFlagBits = enum_VkQueueFlagBits;
 pub const VkQueueFlags = VkFlags;
 pub const VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT = enum_VkMemoryPropertyFlagBits.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
@@ -4102,19 +4058,24 @@ pub extern fn vkCreateInstance(
     pInstance: *VkInstance,
 ) VkResult;
 pub extern fn vkDestroyInstance(instance: VkInstance, pAllocator: ?[*]const VkAllocationCallbacks) void;
-pub extern fn vkEnumeratePhysicalDevices(instance: VkInstance, pPhysicalDeviceCount: ?[*]u32, pPhysicalDevices: ?[*]VkPhysicalDevice) VkResult;
+pub extern fn vkEnumeratePhysicalDevices(instance: VkInstance, pPhysicalDeviceCount: *u32, pPhysicalDevices: ?[*]VkPhysicalDevice) VkResult;
 pub extern fn vkGetPhysicalDeviceFeatures(physicalDevice: VkPhysicalDevice, pFeatures: ?[*]VkPhysicalDeviceFeatures) void;
 pub extern fn vkGetPhysicalDeviceFormatProperties(physicalDevice: VkPhysicalDevice, format: VkFormat, pFormatProperties: ?[*]VkFormatProperties) void;
 pub extern fn vkGetPhysicalDeviceImageFormatProperties(physicalDevice: VkPhysicalDevice, format: VkFormat, type_0: VkImageType, tiling: VkImageTiling, usage: VkImageUsageFlags, flags: VkImageCreateFlags, pImageFormatProperties: ?[*]VkImageFormatProperties) VkResult;
 pub extern fn vkGetPhysicalDeviceProperties(physicalDevice: VkPhysicalDevice, pProperties: ?[*]VkPhysicalDeviceProperties) void;
-pub extern fn vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice: VkPhysicalDevice, pQueueFamilyPropertyCount: ?[*]u32, pQueueFamilyProperties: ?[*]VkQueueFamilyProperties) void;
+pub extern fn vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice: VkPhysicalDevice, pQueueFamilyPropertyCount: *u32, pQueueFamilyProperties: ?[*]VkQueueFamilyProperties) void;
 pub extern fn vkGetPhysicalDeviceMemoryProperties(physicalDevice: VkPhysicalDevice, pMemoryProperties: ?[*]VkPhysicalDeviceMemoryProperties) void;
 pub extern fn vkGetInstanceProcAddr(instance: VkInstance, pName: ?[*]const u8) PFN_vkVoidFunction;
 pub extern fn vkGetDeviceProcAddr(device: VkDevice, pName: ?[*]const u8) PFN_vkVoidFunction;
 pub extern fn vkCreateDevice(physicalDevice: VkPhysicalDevice, pCreateInfo: ?[*]const VkDeviceCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pDevice: ?[*]VkDevice) VkResult;
 pub extern fn vkDestroyDevice(device: VkDevice, pAllocator: ?[*]const VkAllocationCallbacks) void;
 pub extern fn vkEnumerateInstanceExtensionProperties(pLayerName: ?[*]const u8, pPropertyCount: ?[*]u32, pProperties: ?[*]VkExtensionProperties) VkResult;
-pub extern fn vkEnumerateDeviceExtensionProperties(physicalDevice: VkPhysicalDevice, pLayerName: ?[*]const u8, pPropertyCount: ?[*]u32, pProperties: ?[*]VkExtensionProperties) VkResult;
+pub extern fn vkEnumerateDeviceExtensionProperties(
+    physicalDevice: VkPhysicalDevice,
+    pLayerName: ?[*]const u8,
+    pPropertyCount: *u32,
+    pProperties: ?[*]VkExtensionProperties,
+) VkResult;
 pub extern fn vkEnumerateInstanceLayerProperties(pPropertyCount: *u32, pProperties: ?[*]VkLayerProperties) VkResult;
 pub extern fn vkEnumerateDeviceLayerProperties(physicalDevice: VkPhysicalDevice, pPropertyCount: ?[*]u32, pProperties: ?[*]VkLayerProperties) VkResult;
 pub extern fn vkGetDeviceQueue(device: VkDevice, queueFamilyIndex: u32, queueIndex: u32, pQueue: ?[*]VkQueue) void;
@@ -5156,8 +5117,6 @@ pub const enum_VkColorSpaceKHR = extern enum {
     VK_COLOR_SPACE_ADOBERGB_NONLINEAR_EXT = 1000104012,
     VK_COLOR_SPACE_PASS_THROUGH_EXT = 1000104013,
     VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT = 1000104014,
-    VK_COLOR_SPACE_BEGIN_RANGE_KHR = 0,
-    VK_COLOR_SPACE_END_RANGE_KHR = 0,
     VK_COLOR_SPACE_RANGE_SIZE_KHR = 1,
     VK_COLOR_SPACE_MAX_ENUM_KHR = 2147483647,
 };
@@ -5179,8 +5138,6 @@ pub const enum_VkPresentModeKHR = extern enum {
     VK_PRESENT_MODE_FIFO_RELAXED_KHR = 3,
     VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR = 1000111000,
     VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR = 1000111001,
-    VK_PRESENT_MODE_BEGIN_RANGE_KHR = 0,
-    VK_PRESENT_MODE_END_RANGE_KHR = 3,
     VK_PRESENT_MODE_RANGE_SIZE_KHR = 4,
     VK_PRESENT_MODE_MAX_ENUM_KHR = 2147483647,
 };
@@ -5247,10 +5204,10 @@ pub const PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR = ?extern fn (VkPhysical
 pub const PFN_vkGetPhysicalDeviceSurfaceFormatsKHR = ?extern fn (VkPhysicalDevice, VkSurfaceKHR, ?[*]u32, ?[*]VkSurfaceFormatKHR) VkResult;
 pub const PFN_vkGetPhysicalDeviceSurfacePresentModesKHR = ?extern fn (VkPhysicalDevice, VkSurfaceKHR, ?[*]u32, ?[*]VkPresentModeKHR) VkResult;
 pub extern fn vkDestroySurfaceKHR(instance: VkInstance, surface: VkSurfaceKHR, pAllocator: ?[*]const VkAllocationCallbacks) void;
-pub extern fn vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice: VkPhysicalDevice, queueFamilyIndex: u32, surface: VkSurfaceKHR, pSupported: ?[*]VkBool32) VkResult;
-pub extern fn vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice: VkPhysicalDevice, surface: VkSurfaceKHR, pSurfaceCapabilities: ?[*]VkSurfaceCapabilitiesKHR) VkResult;
-pub extern fn vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice: VkPhysicalDevice, surface: VkSurfaceKHR, pSurfaceFormatCount: ?[*]u32, pSurfaceFormats: ?[*]VkSurfaceFormatKHR) VkResult;
-pub extern fn vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice: VkPhysicalDevice, surface: VkSurfaceKHR, pPresentModeCount: ?[*]u32, pPresentModes: ?[*]VkPresentModeKHR) VkResult;
+pub extern fn vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice: VkPhysicalDevice, queueFamilyIndex: u32, surface: VkSurfaceKHR, pSupported: *VkBool32) VkResult;
+pub extern fn vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice: VkPhysicalDevice, surface: VkSurfaceKHR, pSurfaceCapabilities: *VkSurfaceCapabilitiesKHR) VkResult;
+pub extern fn vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice: VkPhysicalDevice, surface: VkSurfaceKHR, pSurfaceFormatCount: *u32, pSurfaceFormats: ?[*]VkSurfaceFormatKHR) VkResult;
+pub extern fn vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice: VkPhysicalDevice, surface: VkSurfaceKHR, pPresentModeCount: *u32, pPresentModes: ?[*]VkPresentModeKHR) VkResult;
 pub const struct_VkSwapchainKHR_T = @OpaqueType();
 pub const VkSwapchainKHR = ?*struct_VkSwapchainKHR_T;
 pub const VK_SWAPCHAIN_CREATE_SPLIT_INSTANCE_BIND_REGIONS_BIT_KHR = enum_VkSwapchainCreateFlagBitsKHR.VK_SWAPCHAIN_CREATE_SPLIT_INSTANCE_BIND_REGIONS_BIT_KHR;

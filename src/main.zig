@@ -14,6 +14,7 @@ const HEIGHT = 600;
 
 const enableValidationLayers = std.debug.runtime_safety;
 const validationLayers = [][*]const u8{c"VK_LAYER_LUNARG_standard_validation"};
+const deviceExtensions = [][*]const u8{c.VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
 pub fn main() !void {
     if (c.glfwInit() == 0) return error.GlfwInitFailed;
@@ -44,13 +45,14 @@ var currentFrame: usize = 0;
 var instance: c.VkInstance = undefined;
 var callback: c.VkDebugReportCallbackEXT = undefined;
 var surface: c.VkSurfaceKHR = undefined;
+var physicalDevice: c.VkPhysicalDevice = undefined;
 
 fn initVulkan(allocator: *Allocator, window: *c.GLFWwindow) !void {
     try createInstance(allocator);
     try setupDebugCallback();
     try createSurface(window);
+    try pickPhysicalDevice(allocator);
     // TODO
-    //pickPhysicalDevice();
     //createLogicalDevice();
     //createSwapChain();
     //createImageViews();
@@ -60,6 +62,158 @@ fn initVulkan(allocator: *Allocator, window: *c.GLFWwindow) !void {
     //createCommandPool();
     //createCommandBuffers();
     //createSyncObjects();
+}
+
+fn pickPhysicalDevice(allocator: *Allocator) !void {
+    var deviceCount: u32 = 0;
+    try checkSuccess(c.vkEnumeratePhysicalDevices(instance, &deviceCount, null));
+
+    if (deviceCount == 0) {
+        return error.FailedToFindGPUsWithVulkanSupport;
+    }
+
+    const devices = try allocator.alloc(c.VkPhysicalDevice, deviceCount);
+    defer allocator.free(devices);
+    try checkSuccess(c.vkEnumeratePhysicalDevices(instance, &deviceCount, devices.ptr));
+
+    physicalDevice = for (devices) |device| {
+        if (try isDeviceSuitable(allocator, device)) {
+            break device;
+        }
+    } else return error.FailedToFindSuitableGPU;
+}
+
+const QueueFamilyIndices = struct {
+    graphicsFamily: ?u32,
+    presentFamily: ?u32,
+
+    fn init() QueueFamilyIndices {
+        return QueueFamilyIndices{
+            .graphicsFamily = null,
+            .presentFamily = null,
+        };
+    }
+
+    fn isComplete(self: QueueFamilyIndices) bool {
+        return self.graphicsFamily != null and self.presentFamily != null;
+    }
+};
+
+fn findQueueFamilies(allocator: *Allocator, device: c.VkPhysicalDevice) !QueueFamilyIndices {
+    var indices = QueueFamilyIndices.init();
+
+    var queueFamilyCount: u32 = 0;
+    c.vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, null);
+
+    const queueFamilies = try allocator.alloc(c.VkQueueFamilyProperties, queueFamilyCount);
+    defer allocator.free(queueFamilies);
+    c.vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.ptr);
+
+    var i: u32 = 0;
+    for (queueFamilies) |queueFamily| {
+        if (queueFamily.queueCount > 0 and
+            queueFamily.queueFlags & c.VK_QUEUE_GRAPHICS_BIT != 0)
+        {
+            indices.graphicsFamily = i;
+        }
+
+        var presentSupport: c.VkBool32 = 0;
+        try checkSuccess(c.vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport));
+
+        if (queueFamily.queueCount > 0 and presentSupport != 0) {
+            indices.presentFamily = i;
+        }
+
+        if (indices.isComplete()) {
+            break;
+        }
+
+        i += 1;
+    }
+
+    return indices;
+}
+
+fn isDeviceSuitable(allocator: *Allocator, device: c.VkPhysicalDevice) !bool {
+    const indices = try findQueueFamilies(allocator, device);
+
+    const extensionsSupported = try checkDeviceExtensionSupport(allocator, device);
+
+    var swapChainAdequate = false;
+    if (extensionsSupported) {
+        const swapChainSupport = try querySwapChainSupport(allocator, device);
+        swapChainAdequate = swapChainSupport.formats.len != 0 and swapChainSupport.presentModes.len != 0;
+    }
+
+    return indices.isComplete() and extensionsSupported and swapChainAdequate;
+}
+
+const SwapChainSupportDetails = struct {
+    capabilities: c.VkSurfaceCapabilitiesKHR,
+    formats: std.ArrayList(c.VkSurfaceFormatKHR),
+    presentModes: std.ArrayList(c.VkPresentModeKHR),
+
+    fn init(allocator: *Allocator) SwapChainSupportDetails {
+        var result = SwapChainSupportDetails{
+            .capabilities = undefined,
+            .formats = std.ArrayList(c.VkSurfaceFormatKHR).init(allocator),
+            .presentModes = std.ArrayList(c.VkPresentModeKHR).init(allocator),
+        };
+        const slice = @sliceToBytes((*[1]c.VkSurfaceCapabilitiesKHR)(&result.capabilities)[0..1]);
+        std.mem.set(u8, slice, 0);
+        return result;
+    }
+
+    fn deinit(self: *SwapChainSupportDetails) void {
+        self.formats.deinit();
+        self.presentModes.deinit();
+    }
+};
+
+fn querySwapChainSupport(allocator: *Allocator, device: c.VkPhysicalDevice) !SwapChainSupportDetails {
+    var details = SwapChainSupportDetails.init(allocator);
+    defer details.deinit();
+
+    try checkSuccess(c.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities));
+
+    var formatCount: u32 = undefined;
+    try checkSuccess(c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, null));
+
+    if (formatCount != 0) {
+        try details.formats.resize(formatCount);
+        try checkSuccess(c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.formats.items.ptr));
+    }
+
+    var presentModeCount: u32 = undefined;
+    try checkSuccess(c.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, null));
+
+    if (presentModeCount != 0) {
+        try details.presentModes.resize(presentModeCount);
+        try checkSuccess(c.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, details.presentModes.items.ptr));
+    }
+
+    return details;
+}
+
+fn checkDeviceExtensionSupport(allocator: *Allocator, device: c.VkPhysicalDevice) !bool {
+    var extensionCount: u32 = undefined;
+    try checkSuccess(c.vkEnumerateDeviceExtensionProperties(device, null, &extensionCount, null));
+
+    const availableExtensions = try allocator.alloc(c.VkExtensionProperties, extensionCount);
+    defer allocator.free(availableExtensions);
+    try checkSuccess(c.vkEnumerateDeviceExtensionProperties(device, null, &extensionCount, availableExtensions.ptr));
+
+    var requiredExtensions = std.HashMap([*]const u8, void, hash_cstr, eql_cstr).init(allocator);
+    defer requiredExtensions.deinit();
+    for (deviceExtensions) |device_ext| {
+        _ = try requiredExtensions.put(device_ext, {});
+    }
+
+    for (availableExtensions) |extension| {
+        _ = requiredExtensions.remove(&extension.extensionName);
+    }
+
+    return requiredExtensions.count() == 0;
 }
 
 fn createSurface(window: *c.GLFWwindow) !void {
@@ -242,4 +396,12 @@ fn drawFrame() void {
     //c.vkQueuePresentKHR(presentQueue, &presentInfo);
 
     //currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+
+fn hash_cstr(a: [*]const u8) u32 {
+    return 0; // TODO
+}
+
+fn eql_cstr(a: [*]const u8, b: [*]const u8) bool {
+    return std.cstr.cmp(a, b) == 0;
 }
