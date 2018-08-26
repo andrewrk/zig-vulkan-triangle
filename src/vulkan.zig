@@ -1490,8 +1490,6 @@ pub const enum_VkImageViewType = extern enum {
     VK_IMAGE_VIEW_TYPE_1D_ARRAY = 4,
     VK_IMAGE_VIEW_TYPE_2D_ARRAY = 5,
     VK_IMAGE_VIEW_TYPE_CUBE_ARRAY = 6,
-    VK_IMAGE_VIEW_TYPE_BEGIN_RANGE = 0,
-    VK_IMAGE_VIEW_TYPE_END_RANGE = 6,
     VK_IMAGE_VIEW_TYPE_RANGE_SIZE = 7,
     VK_IMAGE_VIEW_TYPE_MAX_ENUM = 2147483647,
 };
@@ -1515,8 +1513,6 @@ pub const enum_VkComponentSwizzle = extern enum {
     VK_COMPONENT_SWIZZLE_G = 4,
     VK_COMPONENT_SWIZZLE_B = 5,
     VK_COMPONENT_SWIZZLE_A = 6,
-    VK_COMPONENT_SWIZZLE_BEGIN_RANGE = 0,
-    VK_COMPONENT_SWIZZLE_END_RANGE = 6,
     VK_COMPONENT_SWIZZLE_RANGE_SIZE = 7,
     VK_COMPONENT_SWIZZLE_MAX_ENUM = 2147483647,
 };
@@ -2425,30 +2421,18 @@ pub const enum_VkPipelineStageFlagBits = extern enum {
 pub const VkPipelineStageFlagBits = enum_VkPipelineStageFlagBits;
 pub const VkPipelineStageFlags = VkFlags;
 pub const VkMemoryMapFlags = VkFlags;
-pub const VK_IMAGE_ASPECT_COLOR_BIT = enum_VkImageAspectFlagBits.VK_IMAGE_ASPECT_COLOR_BIT;
-pub const VK_IMAGE_ASPECT_DEPTH_BIT = enum_VkImageAspectFlagBits.VK_IMAGE_ASPECT_DEPTH_BIT;
-pub const VK_IMAGE_ASPECT_STENCIL_BIT = enum_VkImageAspectFlagBits.VK_IMAGE_ASPECT_STENCIL_BIT;
-pub const VK_IMAGE_ASPECT_METADATA_BIT = enum_VkImageAspectFlagBits.VK_IMAGE_ASPECT_METADATA_BIT;
-pub const VK_IMAGE_ASPECT_PLANE_0_BIT = enum_VkImageAspectFlagBits.VK_IMAGE_ASPECT_PLANE_0_BIT;
-pub const VK_IMAGE_ASPECT_PLANE_1_BIT = enum_VkImageAspectFlagBits.VK_IMAGE_ASPECT_PLANE_1_BIT;
-pub const VK_IMAGE_ASPECT_PLANE_2_BIT = enum_VkImageAspectFlagBits.VK_IMAGE_ASPECT_PLANE_2_BIT;
+pub const VK_IMAGE_ASPECT_COLOR_BIT = 1;
+pub const VK_IMAGE_ASPECT_DEPTH_BIT = 2;
+pub const VK_IMAGE_ASPECT_STENCIL_BIT = 4;
+pub const VK_IMAGE_ASPECT_METADATA_BIT = 8;
+pub const VK_IMAGE_ASPECT_PLANE_0_BIT = 16;
+pub const VK_IMAGE_ASPECT_PLANE_1_BIT = 32;
+pub const VK_IMAGE_ASPECT_PLANE_2_BIT = 64;
 pub const VK_IMAGE_ASPECT_PLANE_0_BIT_KHR = enum_VkImageAspectFlagBits.VK_IMAGE_ASPECT_PLANE_0_BIT_KHR;
 pub const VK_IMAGE_ASPECT_PLANE_1_BIT_KHR = enum_VkImageAspectFlagBits.VK_IMAGE_ASPECT_PLANE_1_BIT_KHR;
 pub const VK_IMAGE_ASPECT_PLANE_2_BIT_KHR = enum_VkImageAspectFlagBits.VK_IMAGE_ASPECT_PLANE_2_BIT_KHR;
 pub const VK_IMAGE_ASPECT_FLAG_BITS_MAX_ENUM = enum_VkImageAspectFlagBits.VK_IMAGE_ASPECT_FLAG_BITS_MAX_ENUM;
-pub const enum_VkImageAspectFlagBits = extern enum {
-    VK_IMAGE_ASPECT_COLOR_BIT = 1,
-    VK_IMAGE_ASPECT_DEPTH_BIT = 2,
-    VK_IMAGE_ASPECT_STENCIL_BIT = 4,
-    VK_IMAGE_ASPECT_METADATA_BIT = 8,
-    VK_IMAGE_ASPECT_PLANE_0_BIT = 16,
-    VK_IMAGE_ASPECT_PLANE_1_BIT = 32,
-    VK_IMAGE_ASPECT_PLANE_2_BIT = 64,
-    VK_IMAGE_ASPECT_PLANE_0_BIT_KHR = 16,
-    VK_IMAGE_ASPECT_PLANE_1_BIT_KHR = 32,
-    VK_IMAGE_ASPECT_PLANE_2_BIT_KHR = 64,
-    VK_IMAGE_ASPECT_FLAG_BITS_MAX_ENUM = 2147483647,
-};
+pub const enum_VkImageAspectFlagBits = c_int;
 pub const VkImageAspectFlagBits = enum_VkImageAspectFlagBits;
 pub const VkImageAspectFlags = VkFlags;
 pub const VK_SPARSE_IMAGE_FORMAT_SINGLE_MIPTAIL_BIT = enum_VkSparseImageFormatFlagBits.VK_SPARSE_IMAGE_FORMAT_SINGLE_MIPTAIL_BIT;
@@ -4105,7 +4089,7 @@ pub extern fn vkDestroyBufferView(device: VkDevice, bufferView: VkBufferView, pA
 pub extern fn vkCreateImage(device: VkDevice, pCreateInfo: ?[*]const VkImageCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pImage: ?[*]VkImage) VkResult;
 pub extern fn vkDestroyImage(device: VkDevice, image: VkImage, pAllocator: ?[*]const VkAllocationCallbacks) void;
 pub extern fn vkGetImageSubresourceLayout(device: VkDevice, image: VkImage, pSubresource: ?[*]const VkImageSubresource, pLayout: ?[*]VkSubresourceLayout) void;
-pub extern fn vkCreateImageView(device: VkDevice, pCreateInfo: ?[*]const VkImageViewCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pView: ?[*]VkImageView) VkResult;
+pub extern fn vkCreateImageView(device: VkDevice, pCreateInfo: *const VkImageViewCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pView: *VkImageView) VkResult;
 pub extern fn vkDestroyImageView(device: VkDevice, imageView: VkImageView, pAllocator: ?[*]const VkAllocationCallbacks) void;
 pub extern fn vkCreateShaderModule(device: VkDevice, pCreateInfo: ?[*]const VkShaderModuleCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pShaderModule: ?[*]VkShaderModule) VkResult;
 pub extern fn vkDestroyShaderModule(device: VkDevice, shaderModule: VkShaderModule, pAllocator: ?[*]const VkAllocationCallbacks) void;

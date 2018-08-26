@@ -26,6 +26,7 @@ var swapChainImages: []c.VkImage = undefined;
 var swapChain: c.VkSwapchainKHR = undefined;
 var swapChainImageFormat: c.VkFormat = undefined;
 var swapChainExtent: c.VkExtent2D = undefined;
+var swapChainImageViews: []c.VkImageView = undefined;
 
 const QueueFamilyIndices = struct {
     graphicsFamily: ?u32,
@@ -94,14 +95,46 @@ fn initVulkan(allocator: *Allocator, window: *c.GLFWwindow) !void {
     try pickPhysicalDevice(allocator);
     try createLogicalDevice(allocator);
     try createSwapChain(allocator);
+    try createImageViews(allocator);
     // TODO
-    //createImageViews();
     //createRenderPass();
     //createGraphicsPipeline();
     //createFramebuffers();
     //createCommandPool();
     //createCommandBuffers();
     //createSyncObjects();
+}
+
+fn createImageViews(allocator: *Allocator) !void {
+    swapChainImageViews = try allocator.alloc(c.VkImageView, swapChainImages.len);
+    errdefer allocator.free(swapChainImageViews);
+
+    for (swapChainImages) |swap_chain_image, i| {
+        const createInfo = c.VkImageViewCreateInfo{
+            .sType = c.VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .image = swap_chain_image,
+            .viewType = c.VK_IMAGE_VIEW_TYPE_2D,
+            .format = swapChainImageFormat,
+            .components = c.VkComponentMapping{
+                .r = c.VK_COMPONENT_SWIZZLE_IDENTITY,
+                .g = c.VK_COMPONENT_SWIZZLE_IDENTITY,
+                .b = c.VK_COMPONENT_SWIZZLE_IDENTITY,
+                .a = c.VK_COMPONENT_SWIZZLE_IDENTITY,
+            },
+            .subresourceRange = c.VkImageSubresourceRange{
+                .aspectMask = c.VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1,
+            },
+
+            .pNext = null,
+            .flags = 0,
+        };
+
+        try checkSuccess(c.vkCreateImageView(global_device, &createInfo, null, &swapChainImageViews[i]));
+    }
 }
 
 fn chooseSwapSurfaceFormat(availableFormats: []c.VkSurfaceFormatKHR) c.VkSurfaceFormatKHR {
