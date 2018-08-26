@@ -3097,7 +3097,7 @@ pub const struct_VkDeviceQueueCreateInfo = extern struct {
     flags: VkDeviceQueueCreateFlags,
     queueFamilyIndex: u32,
     queueCount: u32,
-    pQueuePriorities: ?[*]const f32,
+    pQueuePriorities: *const f32,
 };
 pub const VkDeviceQueueCreateInfo = struct_VkDeviceQueueCreateInfo;
 pub const struct_VkDeviceCreateInfo = extern struct {
@@ -3110,7 +3110,7 @@ pub const struct_VkDeviceCreateInfo = extern struct {
     ppEnabledLayerNames: ?[*]const (?[*]const u8),
     enabledExtensionCount: u32,
     ppEnabledExtensionNames: ?[*]const (?[*]const u8),
-    pEnabledFeatures: ?[*]const VkPhysicalDeviceFeatures,
+    pEnabledFeatures: *const VkPhysicalDeviceFeatures,
 };
 pub const VkDeviceCreateInfo = struct_VkDeviceCreateInfo;
 pub const struct_VkExtensionProperties = extern struct {
@@ -4067,7 +4067,7 @@ pub extern fn vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice: VkPhysica
 pub extern fn vkGetPhysicalDeviceMemoryProperties(physicalDevice: VkPhysicalDevice, pMemoryProperties: ?[*]VkPhysicalDeviceMemoryProperties) void;
 pub extern fn vkGetInstanceProcAddr(instance: VkInstance, pName: ?[*]const u8) PFN_vkVoidFunction;
 pub extern fn vkGetDeviceProcAddr(device: VkDevice, pName: ?[*]const u8) PFN_vkVoidFunction;
-pub extern fn vkCreateDevice(physicalDevice: VkPhysicalDevice, pCreateInfo: ?[*]const VkDeviceCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pDevice: ?[*]VkDevice) VkResult;
+pub extern fn vkCreateDevice(physicalDevice: VkPhysicalDevice, pCreateInfo: *const VkDeviceCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pDevice: *VkDevice) VkResult;
 pub extern fn vkDestroyDevice(device: VkDevice, pAllocator: ?[*]const VkAllocationCallbacks) void;
 pub extern fn vkEnumerateInstanceExtensionProperties(pLayerName: ?[*]const u8, pPropertyCount: ?[*]u32, pProperties: ?[*]VkExtensionProperties) VkResult;
 pub extern fn vkEnumerateDeviceExtensionProperties(
@@ -4078,7 +4078,7 @@ pub extern fn vkEnumerateDeviceExtensionProperties(
 ) VkResult;
 pub extern fn vkEnumerateInstanceLayerProperties(pPropertyCount: *u32, pProperties: ?[*]VkLayerProperties) VkResult;
 pub extern fn vkEnumerateDeviceLayerProperties(physicalDevice: VkPhysicalDevice, pPropertyCount: ?[*]u32, pProperties: ?[*]VkLayerProperties) VkResult;
-pub extern fn vkGetDeviceQueue(device: VkDevice, queueFamilyIndex: u32, queueIndex: u32, pQueue: ?[*]VkQueue) void;
+pub extern fn vkGetDeviceQueue(device: VkDevice, queueFamilyIndex: u32, queueIndex: u32, pQueue: *VkQueue) void;
 pub extern fn vkQueueSubmit(queue: VkQueue, submitCount: u32, pSubmits: ?[*]const VkSubmitInfo, fence: VkFence) VkResult;
 pub extern fn vkQueueWaitIdle(queue: VkQueue) VkResult;
 pub extern fn vkDeviceWaitIdle(device: VkDevice) VkResult;
