@@ -4,11 +4,6 @@ const mem = std.mem;
 const Allocator = mem.Allocator;
 const c = @import("vulkan.zig");
 
-fn VK_MAKE_VERSION(major: u32, minor: u32, patch: u32) u32 {
-    return ((major << u5(22)) | (minor << u5(12))) | patch;
-}
-const VK_API_VERSION_1_0 = VK_MAKE_VERSION(1, 0, 0);
-
 const WIDTH = 800;
 const HEIGHT = 600;
 
@@ -27,6 +22,10 @@ var physicalDevice: c.VkPhysicalDevice = undefined;
 var global_device: c.VkDevice = undefined;
 var graphicsQueue: c.VkQueue = undefined;
 var presentQueue: c.VkQueue = undefined;
+var swapChainImages: []c.VkImage = undefined;
+var swapChain: c.VkSwapchainKHR = undefined;
+var swapChainImageFormat: c.VkFormat = undefined;
+var swapChainExtent: c.VkExtent2D = undefined;
 
 const QueueFamilyIndices = struct {
     graphicsFamily: ?u32,
@@ -41,6 +40,28 @@ const QueueFamilyIndices = struct {
 
     fn isComplete(self: QueueFamilyIndices) bool {
         return self.graphicsFamily != null and self.presentFamily != null;
+    }
+};
+
+const SwapChainSupportDetails = struct {
+    capabilities: c.VkSurfaceCapabilitiesKHR,
+    formats: std.ArrayList(c.VkSurfaceFormatKHR),
+    presentModes: std.ArrayList(c.VkPresentModeKHR),
+
+    fn init(allocator: *Allocator) SwapChainSupportDetails {
+        var result = SwapChainSupportDetails{
+            .capabilities = undefined,
+            .formats = std.ArrayList(c.VkSurfaceFormatKHR).init(allocator),
+            .presentModes = std.ArrayList(c.VkPresentModeKHR).init(allocator),
+        };
+        const slice = @sliceToBytes((*[1]c.VkSurfaceCapabilitiesKHR)(&result.capabilities)[0..1]);
+        std.mem.set(u8, slice, 0);
+        return result;
+    }
+
+    fn deinit(self: *SwapChainSupportDetails) void {
+        self.formats.deinit();
+        self.presentModes.deinit();
     }
 };
 
@@ -72,8 +93,8 @@ fn initVulkan(allocator: *Allocator, window: *c.GLFWwindow) !void {
     try createSurface(window);
     try pickPhysicalDevice(allocator);
     try createLogicalDevice(allocator);
+    try createSwapChain(allocator);
     // TODO
-    //createSwapChain();
     //createImageViews();
     //createRenderPass();
     //createGraphicsPipeline();
@@ -81,6 +102,110 @@ fn initVulkan(allocator: *Allocator, window: *c.GLFWwindow) !void {
     //createCommandPool();
     //createCommandBuffers();
     //createSyncObjects();
+}
+
+fn chooseSwapSurfaceFormat(availableFormats: []c.VkSurfaceFormatKHR) c.VkSurfaceFormatKHR {
+    if (availableFormats.len == 1 and availableFormats[0].format == c.VK_FORMAT_UNDEFINED) {
+        return c.VkSurfaceFormatKHR{
+            .format = c.VK_FORMAT_B8G8R8A8_UNORM,
+            .colorSpace = c.VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
+        };
+    }
+
+    for (availableFormats) |availableFormat| {
+        if (availableFormat.format == c.VK_FORMAT_B8G8R8A8_UNORM and
+            availableFormat.colorSpace == c.VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        {
+            return availableFormat;
+        }
+    }
+
+    return availableFormats[0];
+}
+
+fn chooseSwapPresentMode(availablePresentModes: []c.VkPresentModeKHR) c.VkPresentModeKHR {
+    var bestMode: c.VkPresentModeKHR = c.VK_PRESENT_MODE_FIFO_KHR;
+
+    for (availablePresentModes) |availablePresentMode| {
+        if (availablePresentMode == c.VK_PRESENT_MODE_MAILBOX_KHR) {
+            return availablePresentMode;
+        } else if (availablePresentMode == c.VK_PRESENT_MODE_IMMEDIATE_KHR) {
+            bestMode = availablePresentMode;
+        }
+    }
+
+    return bestMode;
+}
+
+fn chooseSwapExtent(capabilities: *const c.VkSurfaceCapabilitiesKHR) c.VkExtent2D {
+    if (capabilities.currentExtent.width != @maxValue(u32)) {
+        return capabilities.currentExtent;
+    } else {
+        var actualExtent = c.VkExtent2D{
+            .width = WIDTH,
+            .height = HEIGHT,
+        };
+
+        actualExtent.width = std.math.max(capabilities.minImageExtent.width, std.math.min(capabilities.maxImageExtent.width, actualExtent.width));
+        actualExtent.height = std.math.max(capabilities.minImageExtent.height, std.math.min(capabilities.maxImageExtent.height, actualExtent.height));
+
+        return actualExtent;
+    }
+}
+
+fn createSwapChain(allocator: *Allocator) !void {
+    const swapChainSupport = try querySwapChainSupport(allocator, physicalDevice);
+
+    const surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats.toSlice());
+    const presentMode = chooseSwapPresentMode(swapChainSupport.presentModes.toSlice());
+    const extent = chooseSwapExtent(swapChainSupport.capabilities);
+
+    var imageCount: u32 = swapChainSupport.capabilities.minImageCount + 1;
+    if (swapChainSupport.capabilities.maxImageCount > 0 and
+        imageCount > swapChainSupport.capabilities.maxImageCount)
+    {
+        imageCount = swapChainSupport.capabilities.maxImageCount;
+    }
+
+    const indices = try findQueueFamilies(allocator, physicalDevice);
+    const queueFamilyIndices = []u32{ indices.graphicsFamily.?, indices.presentFamily.? };
+
+    const different_families = indices.graphicsFamily.? != indices.presentFamily.?;
+
+    var createInfo = c.VkSwapchainCreateInfoKHR{
+        .sType = c.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        .surface = surface,
+
+        .minImageCount = imageCount,
+        .imageFormat = surfaceFormat.format,
+        .imageColorSpace = surfaceFormat.colorSpace,
+        .imageExtent = extent,
+        .imageArrayLayers = 1,
+        .imageUsage = c.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+
+        .imageSharingMode = if (different_families) c.VK_SHARING_MODE_CONCURRENT else c.VK_SHARING_MODE_EXCLUSIVE,
+        .queueFamilyIndexCount = if (different_families) u32(2) else u32(0),
+        .pQueueFamilyIndices = if (different_families) &queueFamilyIndices else &([]u32{ 0, 0 }),
+
+        .preTransform = swapChainSupport.capabilities.currentTransform,
+        .compositeAlpha = c.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        .presentMode = presentMode,
+        .clipped = c.VK_TRUE,
+
+        .oldSwapchain = null,
+
+        .pNext = null,
+        .flags = 0,
+    };
+
+    try checkSuccess(c.vkCreateSwapchainKHR(global_device, &createInfo, null, &swapChain));
+
+    try checkSuccess(c.vkGetSwapchainImagesKHR(global_device, swapChain, &imageCount, null));
+    swapChainImages = try allocator.alloc(c.VkImage, imageCount);
+    try checkSuccess(c.vkGetSwapchainImagesKHR(global_device, swapChain, &imageCount, swapChainImages.ptr));
+
+    swapChainImageFormat = surfaceFormat.format;
+    swapChainExtent = extent;
 }
 
 fn createLogicalDevice(allocator: *Allocator) !void {
@@ -256,28 +381,6 @@ fn isDeviceSuitable(allocator: *Allocator, device: c.VkPhysicalDevice) !bool {
     return indices.isComplete() and extensionsSupported and swapChainAdequate;
 }
 
-const SwapChainSupportDetails = struct {
-    capabilities: c.VkSurfaceCapabilitiesKHR,
-    formats: std.ArrayList(c.VkSurfaceFormatKHR),
-    presentModes: std.ArrayList(c.VkPresentModeKHR),
-
-    fn init(allocator: *Allocator) SwapChainSupportDetails {
-        var result = SwapChainSupportDetails{
-            .capabilities = undefined,
-            .formats = std.ArrayList(c.VkSurfaceFormatKHR).init(allocator),
-            .presentModes = std.ArrayList(c.VkPresentModeKHR).init(allocator),
-        };
-        const slice = @sliceToBytes((*[1]c.VkSurfaceCapabilitiesKHR)(&result.capabilities)[0..1]);
-        std.mem.set(u8, slice, 0);
-        return result;
-    }
-
-    fn deinit(self: *SwapChainSupportDetails) void {
-        self.formats.deinit();
-        self.presentModes.deinit();
-    }
-};
-
 fn querySwapChainSupport(allocator: *Allocator, device: c.VkPhysicalDevice) !SwapChainSupportDetails {
     var details = SwapChainSupportDetails.init(allocator);
     defer details.deinit();
@@ -385,10 +488,10 @@ fn createInstance(allocator: *Allocator) !void {
     const appInfo = c.VkApplicationInfo{
         .sType = c.VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .pApplicationName = c"Hello Triangle",
-        .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+        .applicationVersion = c.VK_MAKE_VERSION(1, 0, 0),
         .pEngineName = c"No Engine",
-        .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-        .apiVersion = VK_API_VERSION_1_0,
+        .engineVersion = c.VK_MAKE_VERSION(1, 0, 0),
+        .apiVersion = c.VK_API_VERSION_1_0,
         .pNext = null,
     };
 

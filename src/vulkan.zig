@@ -1426,8 +1426,6 @@ pub const VK_SHARING_MODE_MAX_ENUM = enum_VkSharingMode.VK_SHARING_MODE_MAX_ENUM
 pub const enum_VkSharingMode = extern enum {
     VK_SHARING_MODE_EXCLUSIVE = 0,
     VK_SHARING_MODE_CONCURRENT = 1,
-    VK_SHARING_MODE_BEGIN_RANGE = 0,
-    VK_SHARING_MODE_END_RANGE = 1,
     VK_SHARING_MODE_RANGE_SIZE = 2,
     VK_SHARING_MODE_MAX_ENUM = 2147483647,
 };
@@ -2262,26 +2260,15 @@ pub const enum_VkFormatFeatureFlagBits = extern enum {
 };
 pub const VkFormatFeatureFlagBits = enum_VkFormatFeatureFlagBits;
 pub const VkFormatFeatureFlags = VkFlags;
-pub const VK_IMAGE_USAGE_TRANSFER_SRC_BIT = enum_VkImageUsageFlagBits.VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-pub const VK_IMAGE_USAGE_TRANSFER_DST_BIT = enum_VkImageUsageFlagBits.VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-pub const VK_IMAGE_USAGE_SAMPLED_BIT = enum_VkImageUsageFlagBits.VK_IMAGE_USAGE_SAMPLED_BIT;
-pub const VK_IMAGE_USAGE_STORAGE_BIT = enum_VkImageUsageFlagBits.VK_IMAGE_USAGE_STORAGE_BIT;
-pub const VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT = enum_VkImageUsageFlagBits.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-pub const VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT = enum_VkImageUsageFlagBits.VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-pub const VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT = enum_VkImageUsageFlagBits.VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
-pub const VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT = enum_VkImageUsageFlagBits.VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
-pub const VK_IMAGE_USAGE_FLAG_BITS_MAX_ENUM = enum_VkImageUsageFlagBits.VK_IMAGE_USAGE_FLAG_BITS_MAX_ENUM;
-pub const enum_VkImageUsageFlagBits = extern enum {
-    VK_IMAGE_USAGE_TRANSFER_SRC_BIT = 1,
-    VK_IMAGE_USAGE_TRANSFER_DST_BIT = 2,
-    VK_IMAGE_USAGE_SAMPLED_BIT = 4,
-    VK_IMAGE_USAGE_STORAGE_BIT = 8,
-    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT = 16,
-    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT = 32,
-    VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT = 64,
-    VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT = 128,
-    VK_IMAGE_USAGE_FLAG_BITS_MAX_ENUM = 2147483647,
-};
+pub const VK_IMAGE_USAGE_TRANSFER_SRC_BIT = 1;
+pub const VK_IMAGE_USAGE_TRANSFER_DST_BIT = 2;
+pub const VK_IMAGE_USAGE_SAMPLED_BIT = 4;
+pub const VK_IMAGE_USAGE_STORAGE_BIT = 8;
+pub const VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT = 16;
+pub const VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT = 32;
+pub const VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT = 64;
+pub const VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT = 128;
+pub const enum_VkImageUsageFlagBits = c_int;
 pub const VkImageUsageFlagBits = enum_VkImageUsageFlagBits;
 pub const VkImageUsageFlags = VkFlags;
 pub const VK_IMAGE_CREATE_SPARSE_BINDING_BIT = enum_VkImageCreateFlagBits.VK_IMAGE_CREATE_SPARSE_BINDING_BIT;
@@ -5319,9 +5306,9 @@ pub const PFN_vkGetDeviceGroupPresentCapabilitiesKHR = ?extern fn (VkDevice, ?[*
 pub const PFN_vkGetDeviceGroupSurfacePresentModesKHR = ?extern fn (VkDevice, VkSurfaceKHR, ?[*]VkDeviceGroupPresentModeFlagsKHR) VkResult;
 pub const PFN_vkGetPhysicalDevicePresentRectanglesKHR = ?extern fn (VkPhysicalDevice, VkSurfaceKHR, ?[*]u32, ?[*]VkRect2D) VkResult;
 pub const PFN_vkAcquireNextImage2KHR = ?extern fn (VkDevice, ?[*]const VkAcquireNextImageInfoKHR, ?[*]u32) VkResult;
-pub extern fn vkCreateSwapchainKHR(device: VkDevice, pCreateInfo: ?[*]const VkSwapchainCreateInfoKHR, pAllocator: ?[*]const VkAllocationCallbacks, pSwapchain: ?[*]VkSwapchainKHR) VkResult;
+pub extern fn vkCreateSwapchainKHR(device: VkDevice, pCreateInfo: *const VkSwapchainCreateInfoKHR, pAllocator: ?[*]const VkAllocationCallbacks, pSwapchain: *VkSwapchainKHR) VkResult;
 pub extern fn vkDestroySwapchainKHR(device: VkDevice, swapchain: VkSwapchainKHR, pAllocator: ?[*]const VkAllocationCallbacks) void;
-pub extern fn vkGetSwapchainImagesKHR(device: VkDevice, swapchain: VkSwapchainKHR, pSwapchainImageCount: ?[*]u32, pSwapchainImages: ?[*]VkImage) VkResult;
+pub extern fn vkGetSwapchainImagesKHR(device: VkDevice, swapchain: VkSwapchainKHR, pSwapchainImageCount: *u32, pSwapchainImages: ?[*]VkImage) VkResult;
 pub extern fn vkAcquireNextImageKHR(device: VkDevice, swapchain: VkSwapchainKHR, timeout: u64, semaphore: VkSemaphore, fence: VkFence, pImageIndex: ?[*]u32) VkResult;
 pub extern fn vkQueuePresentKHR(queue: VkQueue, pPresentInfo: ?[*]const VkPresentInfoKHR) VkResult;
 pub extern fn vkGetDeviceGroupPresentCapabilitiesKHR(device: VkDevice, pDeviceGroupPresentCapabilities: ?[*]VkDeviceGroupPresentCapabilitiesKHR) VkResult;
@@ -7175,7 +7162,9 @@ pub extern fn glfwGetRequiredInstanceExtensions(count: *u32) [*]const [*]const u
 pub extern fn glfwGetInstanceProcAddress(instance: VkInstance, procname: ?[*]const u8) GLFWvkproc;
 pub extern fn glfwGetPhysicalDevicePresentationSupport(instance: VkInstance, device: VkPhysicalDevice, queuefamily: u32) c_int;
 pub extern fn glfwCreateWindowSurface(instance: VkInstance, window: *GLFWwindow, allocator: ?*const VkAllocationCallbacks, surface: *VkSurfaceKHR) VkResult;
-pub fn zig_VK_MAKE_VERSION(major: u32, minor: u32, patch: u32) u32 {
+pub const VK_API_VERSION_1_0 = VK_MAKE_VERSION(1, 0, 0);
+
+pub fn VK_MAKE_VERSION(major: u32, minor: u32, patch: u32) u32 {
     return ((major << u5(22)) | (minor << u5(12))) | patch;
 }
 pub const __BIGGEST_ALIGNMENT__ = 16;
