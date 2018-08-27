@@ -27,6 +27,7 @@ var swapChain: c.VkSwapchainKHR = undefined;
 var swapChainImageFormat: c.VkFormat = undefined;
 var swapChainExtent: c.VkExtent2D = undefined;
 var swapChainImageViews: []c.VkImageView = undefined;
+var renderPass: c.VkRenderPass = undefined;
 
 const QueueFamilyIndices = struct {
     graphicsFamily: ?u32,
@@ -96,13 +97,72 @@ fn initVulkan(allocator: *Allocator, window: *c.GLFWwindow) !void {
     try createLogicalDevice(allocator);
     try createSwapChain(allocator);
     try createImageViews(allocator);
+    try createRenderPass();
     // TODO
-    //createRenderPass();
     //createGraphicsPipeline();
     //createFramebuffers();
     //createCommandPool();
     //createCommandBuffers();
     //createSyncObjects();
+}
+
+fn createRenderPass() !void {
+    const colorAttachment = c.VkAttachmentDescription{
+        .format = swapChainImageFormat,
+        .samples = c.VK_SAMPLE_COUNT_1_BIT,
+        .loadOp = c.VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
+        .stencilLoadOp = c.VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilStoreOp = c.VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .initialLayout = c.VK_IMAGE_LAYOUT_UNDEFINED,
+        .finalLayout = c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        .flags = 0,
+    };
+
+    const colorAttachmentRef = c.VkAttachmentReference{
+        .attachment = 0,
+        .layout = c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    };
+
+    const subpass = []c.VkSubpassDescription{c.VkSubpassDescription{
+        .pipelineBindPoint = c.VK_PIPELINE_BIND_POINT_GRAPHICS,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = (*[1]c.VkAttachmentReference)(&colorAttachmentRef),
+
+        .flags = 0,
+        .inputAttachmentCount = 0,
+        .pInputAttachments = null,
+        .pResolveAttachments = null,
+        .pDepthStencilAttachment = null,
+        .preserveAttachmentCount = 0,
+        .pPreserveAttachments = null,
+    }};
+
+    const dependency = []c.VkSubpassDependency{c.VkSubpassDependency{
+        .srcSubpass = c.VK_SUBPASS_EXTERNAL,
+        .dstSubpass = 0,
+        .srcStageMask = c.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .srcAccessMask = 0,
+        .dstStageMask = c.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .dstAccessMask = c.VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | c.VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+
+        .dependencyFlags = 0,
+    }};
+
+    const renderPassInfo = c.VkRenderPassCreateInfo{
+        .sType = c.VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+        .attachmentCount = 1,
+        .pAttachments = (*[1]c.VkAttachmentDescription)(&colorAttachment),
+        .subpassCount = 1,
+        .pSubpasses = &subpass,
+        .dependencyCount = 1,
+        .pDependencies = &dependency,
+
+        .pNext = null,
+        .flags = 0,
+    };
+
+    try checkSuccess(c.vkCreateRenderPass(global_device, &renderPassInfo, null, &renderPass));
 }
 
 fn createImageViews(allocator: *Allocator) !void {
