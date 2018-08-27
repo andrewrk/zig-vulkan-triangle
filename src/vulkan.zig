@@ -1522,8 +1522,6 @@ pub const VK_VERTEX_INPUT_RATE_MAX_ENUM = enum_VkVertexInputRate.VK_VERTEX_INPUT
 pub const enum_VkVertexInputRate = extern enum {
     VK_VERTEX_INPUT_RATE_VERTEX = 0,
     VK_VERTEX_INPUT_RATE_INSTANCE = 1,
-    VK_VERTEX_INPUT_RATE_BEGIN_RANGE = 0,
-    VK_VERTEX_INPUT_RATE_END_RANGE = 1,
     VK_VERTEX_INPUT_RATE_RANGE_SIZE = 2,
     VK_VERTEX_INPUT_RATE_MAX_ENUM = 2147483647,
 };
@@ -1555,8 +1553,6 @@ pub const enum_VkPrimitiveTopology = extern enum {
     VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY = 8,
     VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY = 9,
     VK_PRIMITIVE_TOPOLOGY_PATCH_LIST = 10,
-    VK_PRIMITIVE_TOPOLOGY_BEGIN_RANGE = 0,
-    VK_PRIMITIVE_TOPOLOGY_END_RANGE = 10,
     VK_PRIMITIVE_TOPOLOGY_RANGE_SIZE = 11,
     VK_PRIMITIVE_TOPOLOGY_MAX_ENUM = 2147483647,
 };
@@ -1574,8 +1570,6 @@ pub const enum_VkPolygonMode = extern enum {
     VK_POLYGON_MODE_LINE = 1,
     VK_POLYGON_MODE_POINT = 2,
     VK_POLYGON_MODE_FILL_RECTANGLE_NV = 1000153000,
-    VK_POLYGON_MODE_BEGIN_RANGE = 0,
-    VK_POLYGON_MODE_END_RANGE = 2,
     VK_POLYGON_MODE_RANGE_SIZE = 3,
     VK_POLYGON_MODE_MAX_ENUM = 2147483647,
 };
@@ -1589,8 +1583,6 @@ pub const VK_FRONT_FACE_MAX_ENUM = enum_VkFrontFace.VK_FRONT_FACE_MAX_ENUM;
 pub const enum_VkFrontFace = extern enum {
     VK_FRONT_FACE_COUNTER_CLOCKWISE = 0,
     VK_FRONT_FACE_CLOCKWISE = 1,
-    VK_FRONT_FACE_BEGIN_RANGE = 0,
-    VK_FRONT_FACE_END_RANGE = 1,
     VK_FRONT_FACE_RANGE_SIZE = 2,
     VK_FRONT_FACE_MAX_ENUM = 2147483647,
 };
@@ -1616,8 +1608,6 @@ pub const enum_VkCompareOp = extern enum {
     VK_COMPARE_OP_NOT_EQUAL = 5,
     VK_COMPARE_OP_GREATER_OR_EQUAL = 6,
     VK_COMPARE_OP_ALWAYS = 7,
-    VK_COMPARE_OP_BEGIN_RANGE = 0,
-    VK_COMPARE_OP_END_RANGE = 7,
     VK_COMPARE_OP_RANGE_SIZE = 8,
     VK_COMPARE_OP_MAX_ENUM = 2147483647,
 };
@@ -1643,8 +1633,6 @@ pub const enum_VkStencilOp = extern enum {
     VK_STENCIL_OP_INVERT = 5,
     VK_STENCIL_OP_INCREMENT_AND_WRAP = 6,
     VK_STENCIL_OP_DECREMENT_AND_WRAP = 7,
-    VK_STENCIL_OP_BEGIN_RANGE = 0,
-    VK_STENCIL_OP_END_RANGE = 7,
     VK_STENCIL_OP_RANGE_SIZE = 8,
     VK_STENCIL_OP_MAX_ENUM = 2147483647,
 };
@@ -1686,8 +1674,6 @@ pub const enum_VkLogicOp = extern enum {
     VK_LOGIC_OP_OR_INVERTED = 13,
     VK_LOGIC_OP_NAND = 14,
     VK_LOGIC_OP_SET = 15,
-    VK_LOGIC_OP_BEGIN_RANGE = 0,
-    VK_LOGIC_OP_END_RANGE = 15,
     VK_LOGIC_OP_RANGE_SIZE = 16,
     VK_LOGIC_OP_MAX_ENUM = 2147483647,
 };
@@ -1735,8 +1721,6 @@ pub const enum_VkBlendFactor = extern enum {
     VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR = 16,
     VK_BLEND_FACTOR_SRC1_ALPHA = 17,
     VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA = 18,
-    VK_BLEND_FACTOR_BEGIN_RANGE = 0,
-    VK_BLEND_FACTOR_END_RANGE = 18,
     VK_BLEND_FACTOR_RANGE_SIZE = 19,
     VK_BLEND_FACTOR_MAX_ENUM = 2147483647,
 };
@@ -1848,8 +1832,6 @@ pub const enum_VkBlendOp = extern enum {
     VK_BLEND_OP_RED_EXT = 1000148043,
     VK_BLEND_OP_GREEN_EXT = 1000148044,
     VK_BLEND_OP_BLUE_EXT = 1000148045,
-    VK_BLEND_OP_BEGIN_RANGE = 0,
-    VK_BLEND_OP_END_RANGE = 4,
     VK_BLEND_OP_RANGE_SIZE = 5,
     VK_BLEND_OP_MAX_ENUM = 2147483647,
 };
@@ -1883,8 +1865,6 @@ pub const enum_VkDynamicState = extern enum {
     VK_DYNAMIC_STATE_VIEWPORT_W_SCALING_NV = 1000087000,
     VK_DYNAMIC_STATE_DISCARD_RECTANGLE_EXT = 1000099000,
     VK_DYNAMIC_STATE_SAMPLE_LOCATIONS_EXT = 1000143000,
-    VK_DYNAMIC_STATE_BEGIN_RANGE = 0,
-    VK_DYNAMIC_STATE_END_RANGE = 8,
     VK_DYNAMIC_STATE_RANGE_SIZE = 9,
     VK_DYNAMIC_STATE_MAX_ENUM = 2147483647,
 };
@@ -2558,7 +2538,6 @@ pub const enum_VkShaderStageFlagBits = extern enum {
     VK_SHADER_STAGE_COMPUTE_BIT = 32,
     VK_SHADER_STAGE_ALL_GRAPHICS = 31,
     VK_SHADER_STAGE_ALL = 2147483647,
-    VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM = 2147483647,
 };
 pub const VkShaderStageFlagBits = enum_VkShaderStageFlagBits;
 pub const VkPipelineVertexInputStateCreateFlags = VkFlags;
@@ -2583,18 +2562,12 @@ pub const VkCullModeFlags = VkFlags;
 pub const VkPipelineMultisampleStateCreateFlags = VkFlags;
 pub const VkPipelineDepthStencilStateCreateFlags = VkFlags;
 pub const VkPipelineColorBlendStateCreateFlags = VkFlags;
-pub const VK_COLOR_COMPONENT_R_BIT = enum_VkColorComponentFlagBits.VK_COLOR_COMPONENT_R_BIT;
-pub const VK_COLOR_COMPONENT_G_BIT = enum_VkColorComponentFlagBits.VK_COLOR_COMPONENT_G_BIT;
-pub const VK_COLOR_COMPONENT_B_BIT = enum_VkColorComponentFlagBits.VK_COLOR_COMPONENT_B_BIT;
-pub const VK_COLOR_COMPONENT_A_BIT = enum_VkColorComponentFlagBits.VK_COLOR_COMPONENT_A_BIT;
+pub const VK_COLOR_COMPONENT_R_BIT = 1;
+pub const VK_COLOR_COMPONENT_G_BIT = 2;
+pub const VK_COLOR_COMPONENT_B_BIT = 4;
+pub const VK_COLOR_COMPONENT_A_BIT = 8;
 pub const VK_COLOR_COMPONENT_FLAG_BITS_MAX_ENUM = enum_VkColorComponentFlagBits.VK_COLOR_COMPONENT_FLAG_BITS_MAX_ENUM;
-pub const enum_VkColorComponentFlagBits = extern enum {
-    VK_COLOR_COMPONENT_R_BIT = 1,
-    VK_COLOR_COMPONENT_G_BIT = 2,
-    VK_COLOR_COMPONENT_B_BIT = 4,
-    VK_COLOR_COMPONENT_A_BIT = 8,
-    VK_COLOR_COMPONENT_FLAG_BITS_MAX_ENUM = 2147483647,
-};
+pub const enum_VkColorComponentFlagBits = c_int;
 pub const VkColorComponentFlagBits = enum_VkColorComponentFlagBits;
 pub const VkColorComponentFlags = VkFlags;
 pub const VkPipelineDynamicStateCreateFlags = VkFlags;
@@ -3433,7 +3406,7 @@ pub const struct_VkPipelineColorBlendStateCreateInfo = extern struct {
     logicOpEnable: VkBool32,
     logicOp: VkLogicOp,
     attachmentCount: u32,
-    pAttachments: ?[*]const VkPipelineColorBlendAttachmentState,
+    pAttachments: *const VkPipelineColorBlendAttachmentState,
     blendConstants: [4]f32,
 };
 pub const VkPipelineColorBlendStateCreateInfo = struct_VkPipelineColorBlendStateCreateInfo;
@@ -3451,15 +3424,15 @@ pub const struct_VkGraphicsPipelineCreateInfo = extern struct {
     flags: VkPipelineCreateFlags,
     stageCount: u32,
     pStages: ?[*]const VkPipelineShaderStageCreateInfo,
-    pVertexInputState: ?[*]const VkPipelineVertexInputStateCreateInfo,
-    pInputAssemblyState: ?[*]const VkPipelineInputAssemblyStateCreateInfo,
+    pVertexInputState: *const VkPipelineVertexInputStateCreateInfo,
+    pInputAssemblyState: *const VkPipelineInputAssemblyStateCreateInfo,
     pTessellationState: ?[*]const VkPipelineTessellationStateCreateInfo,
-    pViewportState: ?[*]const VkPipelineViewportStateCreateInfo,
-    pRasterizationState: ?[*]const VkPipelineRasterizationStateCreateInfo,
-    pMultisampleState: ?[*]const VkPipelineMultisampleStateCreateInfo,
-    pDepthStencilState: ?[*]const VkPipelineDepthStencilStateCreateInfo,
-    pColorBlendState: ?[*]const VkPipelineColorBlendStateCreateInfo,
-    pDynamicState: ?[*]const VkPipelineDynamicStateCreateInfo,
+    pViewportState: *const VkPipelineViewportStateCreateInfo,
+    pRasterizationState: *const VkPipelineRasterizationStateCreateInfo,
+    pMultisampleState: *const VkPipelineMultisampleStateCreateInfo,
+    pDepthStencilState: ?*const VkPipelineDepthStencilStateCreateInfo,
+    pColorBlendState: *const VkPipelineColorBlendStateCreateInfo,
+    pDynamicState: ?*const VkPipelineDynamicStateCreateInfo,
     layout: VkPipelineLayout,
     renderPass: VkRenderPass,
     subpass: u32,
@@ -4037,16 +4010,16 @@ pub extern fn vkDestroyImage(device: VkDevice, image: VkImage, pAllocator: ?[*]c
 pub extern fn vkGetImageSubresourceLayout(device: VkDevice, image: VkImage, pSubresource: ?[*]const VkImageSubresource, pLayout: ?[*]VkSubresourceLayout) void;
 pub extern fn vkCreateImageView(device: VkDevice, pCreateInfo: *const VkImageViewCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pView: *VkImageView) VkResult;
 pub extern fn vkDestroyImageView(device: VkDevice, imageView: VkImageView, pAllocator: ?[*]const VkAllocationCallbacks) void;
-pub extern fn vkCreateShaderModule(device: VkDevice, pCreateInfo: ?[*]const VkShaderModuleCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pShaderModule: ?[*]VkShaderModule) VkResult;
+pub extern fn vkCreateShaderModule(device: VkDevice, pCreateInfo: *const VkShaderModuleCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pShaderModule: *VkShaderModule) VkResult;
 pub extern fn vkDestroyShaderModule(device: VkDevice, shaderModule: VkShaderModule, pAllocator: ?[*]const VkAllocationCallbacks) void;
 pub extern fn vkCreatePipelineCache(device: VkDevice, pCreateInfo: ?[*]const VkPipelineCacheCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pPipelineCache: ?[*]VkPipelineCache) VkResult;
 pub extern fn vkDestroyPipelineCache(device: VkDevice, pipelineCache: VkPipelineCache, pAllocator: ?[*]const VkAllocationCallbacks) void;
 pub extern fn vkGetPipelineCacheData(device: VkDevice, pipelineCache: VkPipelineCache, pDataSize: ?[*]usize, pData: ?*c_void) VkResult;
 pub extern fn vkMergePipelineCaches(device: VkDevice, dstCache: VkPipelineCache, srcCacheCount: u32, pSrcCaches: ?[*]const VkPipelineCache) VkResult;
-pub extern fn vkCreateGraphicsPipelines(device: VkDevice, pipelineCache: VkPipelineCache, createInfoCount: u32, pCreateInfos: ?[*]const VkGraphicsPipelineCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pPipelines: ?[*]VkPipeline) VkResult;
+pub extern fn vkCreateGraphicsPipelines(device: VkDevice, pipelineCache: VkPipelineCache, createInfoCount: u32, pCreateInfos: ?[*]const VkGraphicsPipelineCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pPipelines: [*]VkPipeline) VkResult;
 pub extern fn vkCreateComputePipelines(device: VkDevice, pipelineCache: VkPipelineCache, createInfoCount: u32, pCreateInfos: ?[*]const VkComputePipelineCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pPipelines: ?[*]VkPipeline) VkResult;
 pub extern fn vkDestroyPipeline(device: VkDevice, pipeline: VkPipeline, pAllocator: ?[*]const VkAllocationCallbacks) void;
-pub extern fn vkCreatePipelineLayout(device: VkDevice, pCreateInfo: ?[*]const VkPipelineLayoutCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pPipelineLayout: ?[*]VkPipelineLayout) VkResult;
+pub extern fn vkCreatePipelineLayout(device: VkDevice, pCreateInfo: *const VkPipelineLayoutCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pPipelineLayout: *VkPipelineLayout) VkResult;
 pub extern fn vkDestroyPipelineLayout(device: VkDevice, pipelineLayout: VkPipelineLayout, pAllocator: ?[*]const VkAllocationCallbacks) void;
 pub extern fn vkCreateSampler(device: VkDevice, pCreateInfo: ?[*]const VkSamplerCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pSampler: ?[*]VkSampler) VkResult;
 pub extern fn vkDestroySampler(device: VkDevice, sampler: VkSampler, pAllocator: ?[*]const VkAllocationCallbacks) void;
