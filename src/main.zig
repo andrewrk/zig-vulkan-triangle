@@ -31,6 +31,7 @@ var renderPass: c.VkRenderPass = undefined;
 var pipelineLayout: c.VkPipelineLayout = undefined;
 var graphicsPipeline: c.VkPipeline = undefined;
 var swapChainFramebuffers: []c.VkFramebuffer = undefined;
+var commandPool: c.VkCommandPool = undefined;
 
 const QueueFamilyIndices = struct {
     graphicsFamily: ?u32,
@@ -103,10 +104,24 @@ fn initVulkan(allocator: *Allocator, window: *c.GLFWwindow) !void {
     try createRenderPass();
     try createGraphicsPipeline(allocator);
     try createFramebuffers(allocator);
+    try createCommandPool(allocator);
     // TODO
-    //createCommandPool();
     //createCommandBuffers();
     //createSyncObjects();
+}
+
+fn createCommandPool(allocator: *Allocator) !void {
+    const queueFamilyIndices = try findQueueFamilies(allocator, physicalDevice);
+
+    const poolInfo = c.VkCommandPoolCreateInfo{
+        .sType = c.VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .queueFamilyIndex = queueFamilyIndices.graphicsFamily.?,
+
+        .pNext = null,
+        .flags = 0,
+    };
+
+    try checkSuccess(c.vkCreateCommandPool(global_device, &poolInfo, null, &commandPool));
 }
 
 fn createFramebuffers(allocator: *Allocator) !void {

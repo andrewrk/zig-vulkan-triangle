@@ -4036,7 +4036,7 @@ pub extern fn vkDestroyFramebuffer(device: VkDevice, framebuffer: VkFramebuffer,
 pub extern fn vkCreateRenderPass(device: VkDevice, pCreateInfo: *const VkRenderPassCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pRenderPass: *VkRenderPass) VkResult;
 pub extern fn vkDestroyRenderPass(device: VkDevice, renderPass: VkRenderPass, pAllocator: ?[*]const VkAllocationCallbacks) void;
 pub extern fn vkGetRenderAreaGranularity(device: VkDevice, renderPass: VkRenderPass, pGranularity: ?[*]VkExtent2D) void;
-pub extern fn vkCreateCommandPool(device: VkDevice, pCreateInfo: ?[*]const VkCommandPoolCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pCommandPool: ?[*]VkCommandPool) VkResult;
+pub extern fn vkCreateCommandPool(device: VkDevice, pCreateInfo: *const VkCommandPoolCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pCommandPool: *VkCommandPool) VkResult;
 pub extern fn vkDestroyCommandPool(device: VkDevice, commandPool: VkCommandPool, pAllocator: ?[*]const VkAllocationCallbacks) void;
 pub extern fn vkResetCommandPool(device: VkDevice, commandPool: VkCommandPool, flags: VkCommandPoolResetFlags) VkResult;
 pub extern fn vkAllocateCommandBuffers(device: VkDevice, pAllocateInfo: ?[*]const VkCommandBufferAllocateInfo, pCommandBuffers: ?[*]VkCommandBuffer) VkResult;
