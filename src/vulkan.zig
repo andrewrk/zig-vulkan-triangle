@@ -4031,7 +4031,7 @@ pub extern fn vkResetDescriptorPool(device: VkDevice, descriptorPool: VkDescript
 pub extern fn vkAllocateDescriptorSets(device: VkDevice, pAllocateInfo: ?[*]const VkDescriptorSetAllocateInfo, pDescriptorSets: ?[*]VkDescriptorSet) VkResult;
 pub extern fn vkFreeDescriptorSets(device: VkDevice, descriptorPool: VkDescriptorPool, descriptorSetCount: u32, pDescriptorSets: ?[*]const VkDescriptorSet) VkResult;
 pub extern fn vkUpdateDescriptorSets(device: VkDevice, descriptorWriteCount: u32, pDescriptorWrites: ?[*]const VkWriteDescriptorSet, descriptorCopyCount: u32, pDescriptorCopies: ?[*]const VkCopyDescriptorSet) void;
-pub extern fn vkCreateFramebuffer(device: VkDevice, pCreateInfo: ?[*]const VkFramebufferCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pFramebuffer: ?[*]VkFramebuffer) VkResult;
+pub extern fn vkCreateFramebuffer(device: VkDevice, pCreateInfo: *const VkFramebufferCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pFramebuffer: *VkFramebuffer) VkResult;
 pub extern fn vkDestroyFramebuffer(device: VkDevice, framebuffer: VkFramebuffer, pAllocator: ?[*]const VkAllocationCallbacks) void;
 pub extern fn vkCreateRenderPass(device: VkDevice, pCreateInfo: *const VkRenderPassCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pRenderPass: *VkRenderPass) VkResult;
 pub extern fn vkDestroyRenderPass(device: VkDevice, renderPass: VkRenderPass, pAllocator: ?[*]const VkAllocationCallbacks) void;

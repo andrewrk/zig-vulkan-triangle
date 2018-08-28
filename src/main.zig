@@ -30,6 +30,7 @@ var swapChainImageViews: []c.VkImageView = undefined;
 var renderPass: c.VkRenderPass = undefined;
 var pipelineLayout: c.VkPipelineLayout = undefined;
 var graphicsPipeline: c.VkPipeline = undefined;
+var swapChainFramebuffers: []c.VkFramebuffer = undefined;
 
 const QueueFamilyIndices = struct {
     graphicsFamily: ?u32,
@@ -101,11 +102,34 @@ fn initVulkan(allocator: *Allocator, window: *c.GLFWwindow) !void {
     try createImageViews(allocator);
     try createRenderPass();
     try createGraphicsPipeline(allocator);
+    try createFramebuffers(allocator);
     // TODO
-    //createFramebuffers();
     //createCommandPool();
     //createCommandBuffers();
     //createSyncObjects();
+}
+
+fn createFramebuffers(allocator: *Allocator) !void {
+    swapChainFramebuffers = try allocator.alloc(c.VkFramebuffer, swapChainImageViews.len);
+
+    for (swapChainImageViews) |swap_chain_image_view, i| {
+        const attachments = []c.VkImageView{swap_chain_image_view};
+
+        const framebufferInfo = c.VkFramebufferCreateInfo{
+            .sType = c.VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+            .renderPass = renderPass,
+            .attachmentCount = 1,
+            .pAttachments = &attachments,
+            .width = swapChainExtent.width,
+            .height = swapChainExtent.height,
+            .layers = 1,
+
+            .pNext = null,
+            .flags = 0,
+        };
+
+        try checkSuccess(c.vkCreateFramebuffer(global_device, &framebufferInfo, null, &swapChainFramebuffers[i]));
+    }
 }
 
 fn createShaderModule(code: []align(@alignOf(u32)) const u8) !c.VkShaderModule {
