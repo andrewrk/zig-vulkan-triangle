@@ -2028,8 +2028,6 @@ pub const VK_COMMAND_BUFFER_LEVEL_MAX_ENUM = enum_VkCommandBufferLevel.VK_COMMAN
 pub const enum_VkCommandBufferLevel = extern enum {
     VK_COMMAND_BUFFER_LEVEL_PRIMARY = 0,
     VK_COMMAND_BUFFER_LEVEL_SECONDARY = 1,
-    VK_COMMAND_BUFFER_LEVEL_BEGIN_RANGE = 0,
-    VK_COMMAND_BUFFER_LEVEL_END_RANGE = 1,
     VK_COMMAND_BUFFER_LEVEL_RANGE_SIZE = 2,
     VK_COMMAND_BUFFER_LEVEL_MAX_ENUM = 2147483647,
 };
@@ -2058,8 +2056,6 @@ pub const VK_SUBPASS_CONTENTS_MAX_ENUM = enum_VkSubpassContents.VK_SUBPASS_CONTE
 pub const enum_VkSubpassContents = extern enum {
     VK_SUBPASS_CONTENTS_INLINE = 0,
     VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS = 1,
-    VK_SUBPASS_CONTENTS_BEGIN_RANGE = 0,
-    VK_SUBPASS_CONTENTS_END_RANGE = 1,
     VK_SUBPASS_CONTENTS_RANGE_SIZE = 2,
     VK_SUBPASS_CONTENTS_MAX_ENUM = 2147483647,
 };
@@ -2674,16 +2670,10 @@ pub const enum_VkCommandPoolResetFlagBits = extern enum {
 };
 pub const VkCommandPoolResetFlagBits = enum_VkCommandPoolResetFlagBits;
 pub const VkCommandPoolResetFlags = VkFlags;
-pub const VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT = enum_VkCommandBufferUsageFlagBits.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-pub const VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT = enum_VkCommandBufferUsageFlagBits.VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
-pub const VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT = enum_VkCommandBufferUsageFlagBits.VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-pub const VK_COMMAND_BUFFER_USAGE_FLAG_BITS_MAX_ENUM = enum_VkCommandBufferUsageFlagBits.VK_COMMAND_BUFFER_USAGE_FLAG_BITS_MAX_ENUM;
-pub const enum_VkCommandBufferUsageFlagBits = extern enum {
-    VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT = 1,
-    VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT = 2,
-    VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT = 4,
-    VK_COMMAND_BUFFER_USAGE_FLAG_BITS_MAX_ENUM = 2147483647,
-};
+pub const VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT = 1;
+pub const VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT = 2;
+pub const VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT = 4;
+pub const enum_VkCommandBufferUsageFlagBits = c_int;
 pub const VkCommandBufferUsageFlagBits = enum_VkCommandBufferUsageFlagBits;
 pub const VkCommandBufferUsageFlags = VkFlags;
 pub const VK_QUERY_CONTROL_PRECISE_BIT = enum_VkQueryControlFlagBits.VK_QUERY_CONTROL_PRECISE_BIT;
@@ -4039,9 +4029,9 @@ pub extern fn vkGetRenderAreaGranularity(device: VkDevice, renderPass: VkRenderP
 pub extern fn vkCreateCommandPool(device: VkDevice, pCreateInfo: *const VkCommandPoolCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pCommandPool: *VkCommandPool) VkResult;
 pub extern fn vkDestroyCommandPool(device: VkDevice, commandPool: VkCommandPool, pAllocator: ?[*]const VkAllocationCallbacks) void;
 pub extern fn vkResetCommandPool(device: VkDevice, commandPool: VkCommandPool, flags: VkCommandPoolResetFlags) VkResult;
-pub extern fn vkAllocateCommandBuffers(device: VkDevice, pAllocateInfo: ?[*]const VkCommandBufferAllocateInfo, pCommandBuffers: ?[*]VkCommandBuffer) VkResult;
+pub extern fn vkAllocateCommandBuffers(device: VkDevice, pAllocateInfo: *const VkCommandBufferAllocateInfo, pCommandBuffers: ?[*]VkCommandBuffer) VkResult;
 pub extern fn vkFreeCommandBuffers(device: VkDevice, commandPool: VkCommandPool, commandBufferCount: u32, pCommandBuffers: ?[*]const VkCommandBuffer) void;
-pub extern fn vkBeginCommandBuffer(commandBuffer: VkCommandBuffer, pBeginInfo: ?[*]const VkCommandBufferBeginInfo) VkResult;
+pub extern fn vkBeginCommandBuffer(commandBuffer: VkCommandBuffer, pBeginInfo: *const VkCommandBufferBeginInfo) VkResult;
 pub extern fn vkEndCommandBuffer(commandBuffer: VkCommandBuffer) VkResult;
 pub extern fn vkResetCommandBuffer(commandBuffer: VkCommandBuffer, flags: VkCommandBufferResetFlags) VkResult;
 pub extern fn vkCmdBindPipeline(commandBuffer: VkCommandBuffer, pipelineBindPoint: VkPipelineBindPoint, pipeline: VkPipeline) void;
@@ -4084,7 +4074,7 @@ pub extern fn vkCmdResetQueryPool(commandBuffer: VkCommandBuffer, queryPool: VkQ
 pub extern fn vkCmdWriteTimestamp(commandBuffer: VkCommandBuffer, pipelineStage: VkPipelineStageFlagBits, queryPool: VkQueryPool, query: u32) void;
 pub extern fn vkCmdCopyQueryPoolResults(commandBuffer: VkCommandBuffer, queryPool: VkQueryPool, firstQuery: u32, queryCount: u32, dstBuffer: VkBuffer, dstOffset: VkDeviceSize, stride: VkDeviceSize, flags: VkQueryResultFlags) void;
 pub extern fn vkCmdPushConstants(commandBuffer: VkCommandBuffer, layout: VkPipelineLayout, stageFlags: VkShaderStageFlags, offset: u32, size: u32, pValues: ?*const c_void) void;
-pub extern fn vkCmdBeginRenderPass(commandBuffer: VkCommandBuffer, pRenderPassBegin: ?[*]const VkRenderPassBeginInfo, contents: VkSubpassContents) void;
+pub extern fn vkCmdBeginRenderPass(commandBuffer: VkCommandBuffer, pRenderPassBegin: *const VkRenderPassBeginInfo, contents: VkSubpassContents) void;
 pub extern fn vkCmdNextSubpass(commandBuffer: VkCommandBuffer, contents: VkSubpassContents) void;
 pub extern fn vkCmdEndRenderPass(commandBuffer: VkCommandBuffer) void;
 pub extern fn vkCmdExecuteCommands(commandBuffer: VkCommandBuffer, commandBufferCount: u32, pCommandBuffers: ?[*]const VkCommandBuffer) void;

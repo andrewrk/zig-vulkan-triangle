@@ -32,6 +32,7 @@ var pipelineLayout: c.VkPipelineLayout = undefined;
 var graphicsPipeline: c.VkPipeline = undefined;
 var swapChainFramebuffers: []c.VkFramebuffer = undefined;
 var commandPool: c.VkCommandPool = undefined;
+var commandBuffers: []c.VkCommandBuffer = undefined;
 
 const QueueFamilyIndices = struct {
     graphicsFamily: ?u32,
@@ -105,9 +106,59 @@ fn initVulkan(allocator: *Allocator, window: *c.GLFWwindow) !void {
     try createGraphicsPipeline(allocator);
     try createFramebuffers(allocator);
     try createCommandPool(allocator);
+    try createCommandBuffers(allocator);
     // TODO
-    //createCommandBuffers();
     //createSyncObjects();
+}
+
+fn createCommandBuffers(allocator: *Allocator) !void {
+    commandBuffers = try allocator.alloc(c.VkCommandBuffer, swapChainFramebuffers.len);
+
+    const allocInfo = c.VkCommandBufferAllocateInfo{
+        .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .commandPool = commandPool,
+        .level = c.VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = @intCast(u32, commandBuffers.len),
+        .pNext = null,
+    };
+
+    try checkSuccess(c.vkAllocateCommandBuffers(global_device, &allocInfo, commandBuffers.ptr));
+
+    for (commandBuffers) |command_buffer, i| {
+        const beginInfo = c.VkCommandBufferBeginInfo{
+            .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .flags = c.VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
+            .pNext = null,
+            .pInheritanceInfo = null,
+        };
+
+        try checkSuccess(c.vkBeginCommandBuffer(commandBuffers[i], &beginInfo));
+
+        const clearColor = c.VkClearValue{ .color = c.VkClearColorValue{ .float32 = []f32{ 0.0, 0.0, 0.0, 1.0 } } };
+
+        const renderPassInfo = c.VkRenderPassBeginInfo{
+            .sType = c.VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+            .renderPass = renderPass,
+            .framebuffer = swapChainFramebuffers[i],
+            .renderArea = c.VkRect2D{
+                .offset = c.VkOffset2D{ .x = 0, .y = 0 },
+                .extent = swapChainExtent,
+            },
+            .clearValueCount = 1,
+            .pClearValues = (*[1]c.VkClearValue)(&clearColor),
+
+            .pNext = null,
+        };
+
+        c.vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, c.VK_SUBPASS_CONTENTS_INLINE);
+        {
+            c.vkCmdBindPipeline(commandBuffers[i], c.VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+            c.vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
+        }
+        c.vkCmdEndRenderPass(commandBuffers[i]);
+
+        try checkSuccess(c.vkEndCommandBuffer(commandBuffers[i]));
+    }
 }
 
 fn createCommandPool(allocator: *Allocator) !void {
