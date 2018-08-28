@@ -1,1 +1,3 @@
 zig-cache/
+shaders/frag.spv
+shaders/vert.spv

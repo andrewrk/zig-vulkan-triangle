@@ -8,8 +8,8 @@ https://www.twitch.tv/andrewrok
 ## Building
 
 ```
-glslc -o vert.spv shader.vert
-glslc -o frag.spv shader.frag
+glslc -o shaders/vert.spv shaders/shader.vert
+glslc -o shaders/frag.spv shaders/shader.frag
 zig build run
 ```
 
