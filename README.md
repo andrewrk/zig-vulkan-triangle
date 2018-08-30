@@ -11,5 +11,4 @@ zig build run
 
 ## TODO
 
- * make zig build compile the shaders from source
  * port the cleanup function
