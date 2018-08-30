@@ -3955,7 +3955,7 @@ pub extern fn vkEnumerateDeviceExtensionProperties(
 pub extern fn vkEnumerateInstanceLayerProperties(pPropertyCount: *u32, pProperties: ?[*]VkLayerProperties) VkResult;
 pub extern fn vkEnumerateDeviceLayerProperties(physicalDevice: VkPhysicalDevice, pPropertyCount: ?[*]u32, pProperties: ?[*]VkLayerProperties) VkResult;
 pub extern fn vkGetDeviceQueue(device: VkDevice, queueFamilyIndex: u32, queueIndex: u32, pQueue: *VkQueue) void;
-pub extern fn vkQueueSubmit(queue: VkQueue, submitCount: u32, pSubmits: ?[*]const VkSubmitInfo, fence: VkFence) VkResult;
+pub extern fn vkQueueSubmit(queue: VkQueue, submitCount: u32, pSubmits: [*]const VkSubmitInfo, fence: VkFence) VkResult;
 pub extern fn vkQueueWaitIdle(queue: VkQueue) VkResult;
 pub extern fn vkDeviceWaitIdle(device: VkDevice) VkResult;
 pub extern fn vkAllocateMemory(device: VkDevice, pAllocateInfo: ?[*]const VkMemoryAllocateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pMemory: ?[*]VkDeviceMemory) VkResult;
@@ -3974,9 +3974,9 @@ pub extern fn vkGetPhysicalDeviceSparseImageFormatProperties(physicalDevice: VkP
 pub extern fn vkQueueBindSparse(queue: VkQueue, bindInfoCount: u32, pBindInfo: ?[*]const VkBindSparseInfo, fence: VkFence) VkResult;
 pub extern fn vkCreateFence(device: VkDevice, pCreateInfo: *const VkFenceCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pFence: *VkFence) VkResult;
 pub extern fn vkDestroyFence(device: VkDevice, fence: VkFence, pAllocator: ?[*]const VkAllocationCallbacks) void;
-pub extern fn vkResetFences(device: VkDevice, fenceCount: u32, pFences: ?[*]const VkFence) VkResult;
+pub extern fn vkResetFences(device: VkDevice, fenceCount: u32, pFences: [*]const VkFence) VkResult;
 pub extern fn vkGetFenceStatus(device: VkDevice, fence: VkFence) VkResult;
-pub extern fn vkWaitForFences(device: VkDevice, fenceCount: u32, pFences: ?[*]const VkFence, waitAll: VkBool32, timeout: u64) VkResult;
+pub extern fn vkWaitForFences(device: VkDevice, fenceCount: u32, pFences: [*]const VkFence, waitAll: VkBool32, timeout: u64) VkResult;
 pub extern fn vkCreateSemaphore(device: VkDevice, pCreateInfo: *const VkSemaphoreCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pSemaphore: *VkSemaphore) VkResult;
 pub extern fn vkDestroySemaphore(device: VkDevice, semaphore: VkSemaphore, pAllocator: ?[*]const VkAllocationCallbacks) void;
 pub extern fn vkCreateEvent(device: VkDevice, pCreateInfo: ?[*]const VkEventCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pEvent: ?[*]VkEvent) VkResult;
@@ -5137,8 +5137,8 @@ pub const struct_VkPresentInfoKHR = extern struct {
     waitSemaphoreCount: u32,
     pWaitSemaphores: ?[*]const VkSemaphore,
     swapchainCount: u32,
-    pSwapchains: ?[*]const VkSwapchainKHR,
-    pImageIndices: ?[*]const u32,
+    pSwapchains: [*]const VkSwapchainKHR,
+    pImageIndices: [*]const u32,
     pResults: ?[*]VkResult,
 };
 pub const VkPresentInfoKHR = struct_VkPresentInfoKHR;
@@ -5198,8 +5198,8 @@ pub const PFN_vkAcquireNextImage2KHR = ?extern fn (VkDevice, ?[*]const VkAcquire
 pub extern fn vkCreateSwapchainKHR(device: VkDevice, pCreateInfo: *const VkSwapchainCreateInfoKHR, pAllocator: ?[*]const VkAllocationCallbacks, pSwapchain: *VkSwapchainKHR) VkResult;
 pub extern fn vkDestroySwapchainKHR(device: VkDevice, swapchain: VkSwapchainKHR, pAllocator: ?[*]const VkAllocationCallbacks) void;
 pub extern fn vkGetSwapchainImagesKHR(device: VkDevice, swapchain: VkSwapchainKHR, pSwapchainImageCount: *u32, pSwapchainImages: ?[*]VkImage) VkResult;
-pub extern fn vkAcquireNextImageKHR(device: VkDevice, swapchain: VkSwapchainKHR, timeout: u64, semaphore: VkSemaphore, fence: VkFence, pImageIndex: ?[*]u32) VkResult;
-pub extern fn vkQueuePresentKHR(queue: VkQueue, pPresentInfo: ?[*]const VkPresentInfoKHR) VkResult;
+pub extern fn vkAcquireNextImageKHR(device: VkDevice, swapchain: VkSwapchainKHR, timeout: u64, semaphore: VkSemaphore, fence: VkFence, pImageIndex: *u32) VkResult;
+pub extern fn vkQueuePresentKHR(queue: VkQueue, pPresentInfo: *const VkPresentInfoKHR) VkResult;
 pub extern fn vkGetDeviceGroupPresentCapabilitiesKHR(device: VkDevice, pDeviceGroupPresentCapabilities: ?[*]VkDeviceGroupPresentCapabilitiesKHR) VkResult;
 pub extern fn vkGetDeviceGroupSurfacePresentModesKHR(device: VkDevice, surface: VkSurfaceKHR, pModes: ?[*]VkDeviceGroupPresentModeFlagsKHR) VkResult;
 pub extern fn vkGetPhysicalDevicePresentRectanglesKHR(physicalDevice: VkPhysicalDevice, surface: VkSurfaceKHR, pRectCount: ?[*]u32, pRects: ?[*]VkRect2D) VkResult;

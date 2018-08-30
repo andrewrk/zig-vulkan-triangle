@@ -13,7 +13,6 @@ const enableValidationLayers = std.debug.runtime_safety;
 const validationLayers = [][*]const u8{c"VK_LAYER_LUNARG_standard_validation"};
 const deviceExtensions = [][*]const u8{c.VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
-var inflightFences: std.ArrayList(c.VkFence) = undefined;
 var currentFrame: usize = 0;
 var instance: c.VkInstance = undefined;
 var callback: c.VkDebugReportCallbackEXT = undefined;
@@ -91,7 +90,7 @@ pub fn main() !void {
 
     while (c.glfwWindowShouldClose(window) == 0) {
         c.glfwPollEvents();
-        drawFrame();
+        try drawFrame();
     }
     try checkSuccess(c.vkDeviceWaitIdle(global_device));
 
@@ -968,50 +967,52 @@ fn checkValidationLayerSupport(allocator: *Allocator) !bool {
     return true;
 }
 
-fn drawFrame() void {
-    // TODO
-    //c.vkWaitForFences(device, 1, &inFlightFences[currentFrame], c.VK_TRUE, @maxValue(u64));
-    //c.vkResetFences(device, 1, &inFlightFences[currentFrame]);
+fn drawFrame() !void {
+    try checkSuccess(c.vkWaitForFences(global_device, 1, (*[1]c.VkFence)(&inFlightFences[currentFrame]), c.VK_TRUE, @maxValue(u64)));
+    try checkSuccess(c.vkResetFences(global_device, 1, (*[1]c.VkFence)(&inFlightFences[currentFrame])));
 
-    //var imageIndex: u32 = undefined;
-    //c.vkAcquireNextImageKHR(device, swapChain, std::numeric_limits<uint64_t>::max(), imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+    var imageIndex: u32 = undefined;
+    try checkSuccess(c.vkAcquireNextImageKHR(global_device, swapChain, @maxValue(u64), imageAvailableSemaphores[currentFrame], null, &imageIndex));
 
-    //var waitSemaphores = []c.VkSemaphore{imageAvailableSemaphores.at(currentFrame)};
-    //var waitStages = []c.VkPipelineStageFlags{VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    var waitSemaphores = []c.VkSemaphore{imageAvailableSemaphores[currentFrame]};
+    var waitStages = []c.VkPipelineStageFlags{c.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
-    //var submitInfo = VkSubmitInfo{
-    //    .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO,
-    //    .waitSemaphoreCount = 1,
-    //    .pWaitSemaphores = &waitSemaphores,
-    //    .pWaitDstStageMask = &waitStages,
-    //};
+    const signalSemaphores = []c.VkSemaphore{renderFinishedSemaphores[currentFrame]};
 
-    //submitInfo.commandBufferCount = 1;
-    //submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
+    var submitInfo = []c.VkSubmitInfo{c.VkSubmitInfo{
+        .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = &waitSemaphores,
+        .pWaitDstStageMask = &waitStages,
+        .commandBufferCount = 1,
+        .pCommandBuffers = commandBuffers.ptr + imageIndex,
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores = &signalSemaphores,
 
-    //VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
-    //submitInfo.signalSemaphoreCount = 1;
-    //submitInfo.pSignalSemaphores = signalSemaphores;
+        .pNext = null,
+    }};
 
-    //if (c.vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
-    //    throw std::runtime_error("failed to submit draw command buffer!");
-    //}
+    try checkSuccess(c.vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]));
 
-    //VkPresentInfoKHR presentInfo = {};
-    //presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    const swapChains = []c.VkSwapchainKHR{swapChain};
+    const presentInfo = c.VkPresentInfoKHR{
+        .sType = c.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 
-    //presentInfo.waitSemaphoreCount = 1;
-    //presentInfo.pWaitSemaphores = signalSemaphores;
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = &signalSemaphores,
 
-    //VkSwapchainKHR swapChains[] = {swapChain};
-    //presentInfo.swapchainCount = 1;
-    //presentInfo.pSwapchains = swapChains;
+        .swapchainCount = 1,
+        .pSwapchains = &swapChains,
 
-    //presentInfo.pImageIndices = &imageIndex;
+        .pImageIndices = (*[1]u32)(&imageIndex),
 
-    //c.vkQueuePresentKHR(presentQueue, &presentInfo);
+        .pNext = null,
+        .pResults = null,
+    };
 
-    //currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    try checkSuccess(c.vkQueuePresentKHR(presentQueue, &presentInfo));
+
+    currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 fn hash_cstr(a: [*]const u8) u32 {
