@@ -2400,12 +2400,8 @@ pub const enum_VkSparseMemoryBindFlagBits = extern enum {
 };
 pub const VkSparseMemoryBindFlagBits = enum_VkSparseMemoryBindFlagBits;
 pub const VkSparseMemoryBindFlags = VkFlags;
-pub const VK_FENCE_CREATE_SIGNALED_BIT = enum_VkFenceCreateFlagBits.VK_FENCE_CREATE_SIGNALED_BIT;
-pub const VK_FENCE_CREATE_FLAG_BITS_MAX_ENUM = enum_VkFenceCreateFlagBits.VK_FENCE_CREATE_FLAG_BITS_MAX_ENUM;
-pub const enum_VkFenceCreateFlagBits = extern enum {
-    VK_FENCE_CREATE_SIGNALED_BIT = 1,
-    VK_FENCE_CREATE_FLAG_BITS_MAX_ENUM = 2147483647,
-};
+pub const VK_FENCE_CREATE_SIGNALED_BIT = 1;
+pub const enum_VkFenceCreateFlagBits = c_int;
 pub const VkFenceCreateFlagBits = enum_VkFenceCreateFlagBits;
 pub const VkFenceCreateFlags = VkFlags;
 pub const VkSemaphoreCreateFlags = VkFlags;
@@ -3976,12 +3972,12 @@ pub extern fn vkGetImageMemoryRequirements(device: VkDevice, image: VkImage, pMe
 pub extern fn vkGetImageSparseMemoryRequirements(device: VkDevice, image: VkImage, pSparseMemoryRequirementCount: ?[*]u32, pSparseMemoryRequirements: ?[*]VkSparseImageMemoryRequirements) void;
 pub extern fn vkGetPhysicalDeviceSparseImageFormatProperties(physicalDevice: VkPhysicalDevice, format: VkFormat, type_0: VkImageType, samples: VkSampleCountFlagBits, usage: VkImageUsageFlags, tiling: VkImageTiling, pPropertyCount: ?[*]u32, pProperties: ?[*]VkSparseImageFormatProperties) void;
 pub extern fn vkQueueBindSparse(queue: VkQueue, bindInfoCount: u32, pBindInfo: ?[*]const VkBindSparseInfo, fence: VkFence) VkResult;
-pub extern fn vkCreateFence(device: VkDevice, pCreateInfo: ?[*]const VkFenceCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pFence: ?[*]VkFence) VkResult;
+pub extern fn vkCreateFence(device: VkDevice, pCreateInfo: *const VkFenceCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pFence: *VkFence) VkResult;
 pub extern fn vkDestroyFence(device: VkDevice, fence: VkFence, pAllocator: ?[*]const VkAllocationCallbacks) void;
 pub extern fn vkResetFences(device: VkDevice, fenceCount: u32, pFences: ?[*]const VkFence) VkResult;
 pub extern fn vkGetFenceStatus(device: VkDevice, fence: VkFence) VkResult;
 pub extern fn vkWaitForFences(device: VkDevice, fenceCount: u32, pFences: ?[*]const VkFence, waitAll: VkBool32, timeout: u64) VkResult;
-pub extern fn vkCreateSemaphore(device: VkDevice, pCreateInfo: ?[*]const VkSemaphoreCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pSemaphore: ?[*]VkSemaphore) VkResult;
+pub extern fn vkCreateSemaphore(device: VkDevice, pCreateInfo: *const VkSemaphoreCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pSemaphore: *VkSemaphore) VkResult;
 pub extern fn vkDestroySemaphore(device: VkDevice, semaphore: VkSemaphore, pAllocator: ?[*]const VkAllocationCallbacks) void;
 pub extern fn vkCreateEvent(device: VkDevice, pCreateInfo: ?[*]const VkEventCreateInfo, pAllocator: ?[*]const VkAllocationCallbacks, pEvent: ?[*]VkEvent) VkResult;
 pub extern fn vkDestroyEvent(device: VkDevice, event: VkEvent, pAllocator: ?[*]const VkAllocationCallbacks) void;

@@ -7,12 +7,12 @@ const c = @import("vulkan.zig");
 const WIDTH = 800;
 const HEIGHT = 600;
 
+const MAX_FRAMES_IN_FLIGHT = 2;
+
 const enableValidationLayers = std.debug.runtime_safety;
 const validationLayers = [][*]const u8{c"VK_LAYER_LUNARG_standard_validation"};
 const deviceExtensions = [][*]const u8{c.VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
-var imageAvailableSemaphores: std.ArrayList(c.VkSemaphore) = undefined;
-var renderFinishedSemaphores: std.ArrayList(c.VkSemaphore) = undefined;
 var inflightFences: std.ArrayList(c.VkFence) = undefined;
 var currentFrame: usize = 0;
 var instance: c.VkInstance = undefined;
@@ -33,6 +33,10 @@ var graphicsPipeline: c.VkPipeline = undefined;
 var swapChainFramebuffers: []c.VkFramebuffer = undefined;
 var commandPool: c.VkCommandPool = undefined;
 var commandBuffers: []c.VkCommandBuffer = undefined;
+
+var imageAvailableSemaphores: [MAX_FRAMES_IN_FLIGHT]c.VkSemaphore = undefined;
+var renderFinishedSemaphores: [MAX_FRAMES_IN_FLIGHT]c.VkSemaphore = undefined;
+var inFlightFences: [MAX_FRAMES_IN_FLIGHT]c.VkFence = undefined;
 
 const QueueFamilyIndices = struct {
     graphicsFamily: ?u32,
@@ -107,8 +111,7 @@ fn initVulkan(allocator: *Allocator, window: *c.GLFWwindow) !void {
     try createFramebuffers(allocator);
     try createCommandPool(allocator);
     try createCommandBuffers(allocator);
-    // TODO
-    //createSyncObjects();
+    try createSyncObjects();
 }
 
 fn createCommandBuffers(allocator: *Allocator) !void {
@@ -158,6 +161,27 @@ fn createCommandBuffers(allocator: *Allocator) !void {
         c.vkCmdEndRenderPass(commandBuffers[i]);
 
         try checkSuccess(c.vkEndCommandBuffer(commandBuffers[i]));
+    }
+}
+
+fn createSyncObjects() !void {
+    const semaphoreInfo = c.VkSemaphoreCreateInfo{
+        .sType = c.VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        .pNext = null,
+        .flags = 0,
+    };
+
+    const fenceInfo = c.VkFenceCreateInfo{
+        .sType = c.VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        .flags = c.VK_FENCE_CREATE_SIGNALED_BIT,
+        .pNext = null,
+    };
+
+    var i: usize = 0;
+    while (i < MAX_FRAMES_IN_FLIGHT) : (i += 1) {
+        try checkSuccess(c.vkCreateSemaphore(global_device, &semaphoreInfo, null, &imageAvailableSemaphores[i]));
+        try checkSuccess(c.vkCreateSemaphore(global_device, &semaphoreInfo, null, &renderFinishedSemaphores[i]));
+        try checkSuccess(c.vkCreateFence(global_device, &fenceInfo, null, &inFlightFences[i]));
     }
 }
 
@@ -945,6 +969,7 @@ fn checkValidationLayerSupport(allocator: *Allocator) !bool {
 }
 
 fn drawFrame() void {
+    // TODO
     //c.vkWaitForFences(device, 1, &inFlightFences[currentFrame], c.VK_TRUE, @maxValue(u64));
     //c.vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
