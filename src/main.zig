@@ -93,8 +93,6 @@ pub fn main() !void {
         try drawFrame();
     }
     try checkSuccess(c.vkDeviceWaitIdle(global_device));
-
-    std.debug.warn("TODO port the cleanup function");
 }
 
 fn initVulkan(allocator: *Allocator, window: *c.GLFWwindow) !void {

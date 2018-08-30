@@ -1,6 +1,8 @@
-const Builder = @import("std").build.Builder;
+const std = @import("std");
+const path = std.os.path;
+const Builder = std.build.Builder;
 
-pub fn build(b: *Builder) void {
+pub fn build(b: *Builder) !void {
     const mode = b.standardReleaseOptions();
     const exe = b.addExecutable("zig-vulkan-triangle", "src/main.zig");
     exe.setBuildMode(mode);
@@ -15,4 +17,23 @@ pub fn build(b: *Builder) void {
     const run_cmd = b.addCommand(".", b.env_map, [][]const u8{exe.getOutputPath()});
     run_step.dependOn(&run_cmd.step);
     run_cmd.step.dependOn(&exe.step);
+
+    try addShader(b, exe, "shader.vert", "vert.spv");
+    try addShader(b, exe, "shader.frag", "frag.spv");
+}
+
+fn addShader(b: *Builder, exe: var, in_file: []const u8, out_file: []const u8) !void {
+    // example:
+    // glslc -o shaders/vert.spv shaders/shader.vert
+    const dirname = "shaders";
+    const full_in = try path.join(b.allocator, dirname, in_file);
+    const full_out = try path.join(b.allocator, dirname, out_file);
+
+    const run_cmd = b.addCommand(".", b.env_map, [][]const u8{
+        "glslc",
+        "-o",
+        full_out,
+        full_in,
+    });
+    exe.step.dependOn(&run_cmd.step);
 }
