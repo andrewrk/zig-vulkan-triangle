@@ -8,7 +8,3 @@ https://www.twitch.tv/andrewrok
 ```
 zig build run
 ```
-
-## TODO
-
- * port the cleanup function

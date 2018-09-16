@@ -98,40 +98,36 @@ pub fn main() !void {
 }
 
 fn cleanup() void {
-    // TODO
-    //for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-    //    vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
-    //    vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
-    //    vkDestroyFence(device, inFlightFences[i], nullptr);
-    //}
+    var i: usize = 0;
+    while (i < MAX_FRAMES_IN_FLIGHT) : (i += 1) {
+        c.vkDestroySemaphore(global_device, renderFinishedSemaphores[i], null);
+        c.vkDestroySemaphore(global_device, imageAvailableSemaphores[i], null);
+        c.vkDestroyFence(global_device, inFlightFences[i], null);
+    }
 
-    //vkDestroyCommandPool(device, commandPool, nullptr);
+    c.vkDestroyCommandPool(global_device, commandPool, null);
 
-    //for (auto framebuffer : swapChainFramebuffers) {
-    //    vkDestroyFramebuffer(device, framebuffer, nullptr);
-    //}
+    for (swapChainFramebuffers) |framebuffer| {
+        c.vkDestroyFramebuffer(global_device, framebuffer, null);
+    }
 
-    //vkDestroyPipeline(device, graphicsPipeline, nullptr);
-    //vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-    //vkDestroyRenderPass(device, renderPass, nullptr);
+    c.vkDestroyPipeline(global_device, graphicsPipeline, null);
+    c.vkDestroyPipelineLayout(global_device, pipelineLayout, null);
+    c.vkDestroyRenderPass(global_device, renderPass, null);
 
-    //for (auto imageView : swapChainImageViews) {
-    //    vkDestroyImageView(device, imageView, nullptr);
-    //}
+    for (swapChainImageViews) |imageView| {
+        c.vkDestroyImageView(global_device, imageView, null);
+    }
 
-    //vkDestroySwapchainKHR(device, swapChain, nullptr);
-    //vkDestroyDevice(device, nullptr);
+    c.vkDestroySwapchainKHR(global_device, swapChain, null);
+    c.vkDestroyDevice(global_device, null);
 
-    //if (enableValidationLayers) {
-    //    DestroyDebugReportCallbackEXT(instance, callback, nullptr);
-    //}
+    if (enableValidationLayers) {
+        DestroyDebugReportCallbackEXT(null);
+    }
 
-    //vkDestroySurfaceKHR(instance, surface, nullptr);
-    //vkDestroyInstance(instance, nullptr);
-
-    //glfwDestroyWindow(window);
-
-    //glfwTerminate();
+    c.vkDestroySurfaceKHR(instance, surface, null);
+    c.vkDestroyInstance(instance, null);
 }
 
 fn initVulkan(allocator: *Allocator, window: *c.GLFWwindow) !void {
@@ -906,6 +902,16 @@ fn setupDebugCallback() !void {
     }
 }
 
+fn DestroyDebugReportCallbackEXT(
+    pAllocator: ?*const c.VkAllocationCallbacks,
+) void {
+    const func = @ptrCast(c.PFN_vkDestroyDebugReportCallbackEXT, c.vkGetInstanceProcAddr(
+        instance,
+        c"vkDestroyDebugReportCallbackEXT",
+    )) orelse unreachable;
+    func(instance, callback, pAllocator);
+}
+
 fn CreateDebugReportCallbackEXT(
     pCreateInfo: *const c.VkDebugReportCallbackCreateInfoEXT,
     pAllocator: ?*const c.VkAllocationCallbacks,
@@ -1053,7 +1059,14 @@ fn drawFrame() !void {
 }
 
 fn hash_cstr(a: [*]const u8) u32 {
-    return 0; // TODO
+    // FNV 32-bit hash
+    var h: u32 = 2166136261;
+    var i: usize = 0;
+    while (a[i] != 0) : (i += 1) {
+        h ^= a[i];
+        h *%= 16777619;
+    }
+    return h;
 }
 
 fn eql_cstr(a: [*]const u8, b: [*]const u8) bool {

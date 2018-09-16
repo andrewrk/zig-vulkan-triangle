@@ -5733,7 +5733,7 @@ pub const struct_VkDebugReportCallbackCreateInfoEXT = extern struct {
 };
 pub const VkDebugReportCallbackCreateInfoEXT = struct_VkDebugReportCallbackCreateInfoEXT;
 pub const PFN_vkCreateDebugReportCallbackEXT = ?extern fn (VkInstance, ?*const VkDebugReportCallbackCreateInfoEXT, ?*const VkAllocationCallbacks, ?*VkDebugReportCallbackEXT) VkResult;
-pub const PFN_vkDestroyDebugReportCallbackEXT = ?extern fn (VkInstance, VkDebugReportCallbackEXT, ?[*]const VkAllocationCallbacks) void;
+pub const PFN_vkDestroyDebugReportCallbackEXT = ?extern fn (VkInstance, VkDebugReportCallbackEXT, ?*const VkAllocationCallbacks) void;
 pub const PFN_vkDebugReportMessageEXT = ?extern fn (VkInstance, VkDebugReportFlagsEXT, VkDebugReportObjectTypeEXT, u64, usize, i32, ?[*]const u8, ?[*]const u8) void;
 pub extern fn vkCreateDebugReportCallbackEXT(instance: VkInstance, pCreateInfo: ?[*]const VkDebugReportCallbackCreateInfoEXT, pAllocator: ?[*]const VkAllocationCallbacks, pCallback: ?[*]VkDebugReportCallbackEXT) VkResult;
 pub extern fn vkDestroyDebugReportCallbackEXT(instance: VkInstance, callback: VkDebugReportCallbackEXT, pAllocator: ?[*]const VkAllocationCallbacks) void;
