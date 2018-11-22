@@ -3,6 +3,7 @@ const assert = std.debug.assert;
 const mem = std.mem;
 const Allocator = mem.Allocator;
 const c = @import("vulkan.zig");
+const maxInt = std.math.maxInt;
 
 const WIDTH = 800;
 const HEIGHT = 600;
@@ -573,8 +574,8 @@ fn chooseSwapPresentMode(availablePresentModes: []c.VkPresentModeKHR) c.VkPresen
     return bestMode;
 }
 
-fn chooseSwapExtent(capabilities: *const c.VkSurfaceCapabilitiesKHR) c.VkExtent2D {
-    if (capabilities.currentExtent.width != @maxValue(u32)) {
+fn chooseSwapExtent(capabilities: c.VkSurfaceCapabilitiesKHR) c.VkExtent2D {
+    if (capabilities.currentExtent.width != maxInt(u32)) {
         return capabilities.currentExtent;
     } else {
         var actualExtent = c.VkExtent2D{
@@ -1011,11 +1012,11 @@ fn checkValidationLayerSupport(allocator: *Allocator) !bool {
 }
 
 fn drawFrame() !void {
-    try checkSuccess(c.vkWaitForFences(global_device, 1, (*[1]c.VkFence)(&inFlightFences[currentFrame]), c.VK_TRUE, @maxValue(u64)));
+    try checkSuccess(c.vkWaitForFences(global_device, 1, (*[1]c.VkFence)(&inFlightFences[currentFrame]), c.VK_TRUE, maxInt(u64)));
     try checkSuccess(c.vkResetFences(global_device, 1, (*[1]c.VkFence)(&inFlightFences[currentFrame])));
 
     var imageIndex: u32 = undefined;
-    try checkSuccess(c.vkAcquireNextImageKHR(global_device, swapChain, @maxValue(u64), imageAvailableSemaphores[currentFrame], null, &imageIndex));
+    try checkSuccess(c.vkAcquireNextImageKHR(global_device, swapChain, maxInt(u64), imageAvailableSemaphores[currentFrame], null, &imageIndex));
 
     var waitSemaphores = []c.VkSemaphore{imageAvailableSemaphores[currentFrame]};
     var waitStages = []c.VkPipelineStageFlags{c.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
