@@ -181,7 +181,7 @@ fn createCommandBuffers(allocator: *Allocator) !void {
                 .extent = swapChainExtent,
             },
             .clearValueCount = 1,
-            .pClearValues = (*[1]c.VkClearValue)(&clearColor),
+            .pClearValues = (*const [1]c.VkClearValue)(&clearColor),
 
             .pNext = null,
         };
@@ -471,7 +471,7 @@ fn createRenderPass() !void {
     const subpass = []c.VkSubpassDescription{c.VkSubpassDescription{
         .pipelineBindPoint = c.VK_PIPELINE_BIND_POINT_GRAPHICS,
         .colorAttachmentCount = 1,
-        .pColorAttachments = (*[1]c.VkAttachmentReference)(&colorAttachmentRef),
+        .pColorAttachments = (*const [1]c.VkAttachmentReference)(&colorAttachmentRef),
 
         .flags = 0,
         .inputAttachmentCount = 0,
@@ -496,7 +496,7 @@ fn createRenderPass() !void {
     const renderPassInfo = c.VkRenderPassCreateInfo{
         .sType = c.VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
         .attachmentCount = 1,
-        .pAttachments = (*[1]c.VkAttachmentDescription)(&colorAttachment),
+        .pAttachments = (*const [1]c.VkAttachmentDescription)(&colorAttachment),
         .subpassCount = 1,
         .pSubpasses = &subpass,
         .dependencyCount = 1,

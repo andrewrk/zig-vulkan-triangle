@@ -14,9 +14,8 @@ pub fn build(b: *Builder) !void {
     b.installArtifact(exe);
 
     const run_step = b.step("run", "Run the app");
-    const run_cmd = b.addCommand(".", b.env_map, [][]const u8{exe.getOutputPath()});
+    const run_cmd = exe.run();
     run_step.dependOn(&run_cmd.step);
-    run_cmd.step.dependOn(&exe.step);
 
     try addShader(b, exe, "shader.vert", "vert.spv");
     try addShader(b, exe, "shader.frag", "frag.spv");
@@ -26,10 +25,10 @@ fn addShader(b: *Builder, exe: var, in_file: []const u8, out_file: []const u8) !
     // example:
     // glslc -o shaders/vert.spv shaders/shader.vert
     const dirname = "shaders";
-    const full_in = try path.join(b.allocator, dirname, in_file);
-    const full_out = try path.join(b.allocator, dirname, out_file);
+    const full_in = try path.join(b.allocator, [][]const u8{ dirname, in_file });
+    const full_out = try path.join(b.allocator, [][]const u8{ dirname, out_file });
 
-    const run_cmd = b.addCommand(".", b.env_map, [][]const u8{
+    const run_cmd = b.addSystemCommand([][]const u8{
         "glslc",
         "-o",
         full_out,
