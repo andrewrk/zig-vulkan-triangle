@@ -591,8 +591,9 @@ fn chooseSwapExtent(capabilities: c.VkSurfaceCapabilitiesKHR) c.VkExtent2D {
 }
 
 fn createSwapChain(allocator: *Allocator) !void {
-    const swapChainSupport = try querySwapChainSupport(allocator, physicalDevice);
-
+    var swapChainSupport = try querySwapChainSupport(allocator, physicalDevice);
+    defer swapChainSupport.deinit();
+    
     const surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats.toSlice());
     const presentMode = chooseSwapPresentMode(swapChainSupport.presentModes.toSlice());
     const extent = chooseSwapExtent(swapChainSupport.capabilities);
@@ -811,7 +812,8 @@ fn isDeviceSuitable(allocator: *Allocator, device: c.VkPhysicalDevice) !bool {
 
     var swapChainAdequate = false;
     if (extensionsSupported) {
-        const swapChainSupport = try querySwapChainSupport(allocator, device);
+        var swapChainSupport = try querySwapChainSupport(allocator, device);
+        defer swapChainSupport.deinit();
         swapChainAdequate = swapChainSupport.formats.len != 0 and swapChainSupport.presentModes.len != 0;
     }
 
@@ -820,7 +822,6 @@ fn isDeviceSuitable(allocator: *Allocator, device: c.VkPhysicalDevice) !bool {
 
 fn querySwapChainSupport(allocator: *Allocator, device: c.VkPhysicalDevice) !SwapChainSupportDetails {
     var details = SwapChainSupportDetails.init(allocator);
-    defer details.deinit();
 
     try checkSuccess(c.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities));
 
