@@ -11,8 +11,8 @@ const HEIGHT = 600;
 const MAX_FRAMES_IN_FLIGHT = 2;
 
 const enableValidationLayers = std.debug.runtime_safety;
-const validationLayers = [][*]const u8{c"VK_LAYER_LUNARG_standard_validation"};
-const deviceExtensions = [][*]const u8{c.VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+const validationLayers = [_][*]const u8{c"VK_LAYER_LUNARG_standard_validation"};
+const deviceExtensions = [_][*]const u8{c.VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
 var currentFrame: usize = 0;
 var instance: c.VkInstance = undefined;
@@ -170,7 +170,7 @@ fn createCommandBuffers(allocator: *Allocator) !void {
 
         try checkSuccess(c.vkBeginCommandBuffer(commandBuffers[i], &beginInfo));
 
-        const clearColor = c.VkClearValue{ .color = c.VkClearColorValue{ .float32 = []f32{ 0.0, 0.0, 0.0, 1.0 } } };
+        const clearColor = c.VkClearValue{ .color = c.VkClearColorValue{ .float32 = [_]f32{ 0.0, 0.0, 0.0, 1.0 } } };
 
         const renderPassInfo = c.VkRenderPassBeginInfo{
             .sType = c.VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -236,7 +236,7 @@ fn createFramebuffers(allocator: *Allocator) !void {
     swapChainFramebuffers = try allocator.alloc(c.VkFramebuffer, swapChainImageViews.len);
 
     for (swapChainImageViews) |swap_chain_image_view, i| {
-        const attachments = []c.VkImageView{swap_chain_image_view};
+        const attachments = [_]c.VkImageView{swap_chain_image_view};
 
         const framebufferInfo = c.VkFramebufferCreateInfo{
             .sType = c.VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
@@ -303,7 +303,7 @@ fn createGraphicsPipeline(allocator: *Allocator) !void {
         .pSpecializationInfo = null,
     };
 
-    const shaderStages = []c.VkPipelineShaderStageCreateInfo{ vertShaderStageInfo, fragShaderStageInfo };
+    const shaderStages = [_]c.VkPipelineShaderStageCreateInfo{ vertShaderStageInfo, fragShaderStageInfo };
 
     const vertexInputInfo = c.VkPipelineVertexInputStateCreateInfo{
         .sType = c.VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
@@ -324,7 +324,7 @@ fn createGraphicsPipeline(allocator: *Allocator) !void {
         .flags = 0,
     };
 
-    const viewport = []c.VkViewport{c.VkViewport{
+    const viewport = [_]c.VkViewport{c.VkViewport{
         .x = 0.0,
         .y = 0.0,
         .width = @intToFloat(f32, swapChainExtent.width),
@@ -333,7 +333,7 @@ fn createGraphicsPipeline(allocator: *Allocator) !void {
         .maxDepth = 1.0,
     }};
 
-    const scissor = []c.VkRect2D{c.VkRect2D{
+    const scissor = [_]c.VkRect2D{c.VkRect2D{
         .offset = c.VkOffset2D{ .x = 0, .y = 0 },
         .extent = swapChainExtent,
     }};
@@ -396,7 +396,7 @@ fn createGraphicsPipeline(allocator: *Allocator) !void {
         .logicOp = c.VK_LOGIC_OP_COPY,
         .attachmentCount = 1,
         .pAttachments = &colorBlendAttachment,
-        .blendConstants = []f32{ 0, 0, 0, 0 },
+        .blendConstants = [_]f32{ 0, 0, 0, 0 },
 
         .pNext = null,
         .flags = 0,
@@ -414,7 +414,7 @@ fn createGraphicsPipeline(allocator: *Allocator) !void {
 
     try checkSuccess(c.vkCreatePipelineLayout(global_device, &pipelineLayoutInfo, null, &pipelineLayout));
 
-    const pipelineInfo = []c.VkGraphicsPipelineCreateInfo{c.VkGraphicsPipelineCreateInfo{
+    const pipelineInfo = [_]c.VkGraphicsPipelineCreateInfo{c.VkGraphicsPipelineCreateInfo{
         .sType = c.VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
         .stageCount = @intCast(u32, shaderStages.len),
         .pStages = &shaderStages,
@@ -468,7 +468,7 @@ fn createRenderPass() !void {
         .layout = c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
     };
 
-    const subpass = []c.VkSubpassDescription{c.VkSubpassDescription{
+    const subpass = [_]c.VkSubpassDescription{c.VkSubpassDescription{
         .pipelineBindPoint = c.VK_PIPELINE_BIND_POINT_GRAPHICS,
         .colorAttachmentCount = 1,
         .pColorAttachments = (*const [1]c.VkAttachmentReference)(&colorAttachmentRef),
@@ -482,7 +482,7 @@ fn createRenderPass() !void {
         .pPreserveAttachments = null,
     }};
 
-    const dependency = []c.VkSubpassDependency{c.VkSubpassDependency{
+    const dependency = [_]c.VkSubpassDependency{c.VkSubpassDependency{
         .srcSubpass = c.VK_SUBPASS_EXTERNAL,
         .dstSubpass = 0,
         .srcStageMask = c.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -605,7 +605,7 @@ fn createSwapChain(allocator: *Allocator) !void {
     }
 
     const indices = try findQueueFamilies(allocator, physicalDevice);
-    const queueFamilyIndices = []u32{ indices.graphicsFamily.?, indices.presentFamily.? };
+    const queueFamilyIndices = [_]u32{ indices.graphicsFamily.?, indices.presentFamily.? };
 
     const different_families = indices.graphicsFamily.? != indices.presentFamily.?;
 
@@ -622,7 +622,7 @@ fn createSwapChain(allocator: *Allocator) !void {
 
         .imageSharingMode = if (different_families) c.VK_SHARING_MODE_CONCURRENT else c.VK_SHARING_MODE_EXCLUSIVE,
         .queueFamilyIndexCount = if (different_families) u32(2) else u32(0),
-        .pQueueFamilyIndices = if (different_families) &queueFamilyIndices else &([]u32{ 0, 0 }),
+        .pQueueFamilyIndices = if (different_families) &queueFamilyIndices else &([_]u32{ 0, 0 }),
 
         .preTransform = swapChainSupport.capabilities.currentTransform,
         .compositeAlpha = c.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
@@ -650,7 +650,7 @@ fn createLogicalDevice(allocator: *Allocator) !void {
 
     var queueCreateInfos = std.ArrayList(c.VkDeviceQueueCreateInfo).init(allocator);
     defer queueCreateInfos.deinit();
-    const all_queue_families = []u32{ indices.graphicsFamily.?, indices.presentFamily.? };
+    const all_queue_families = [_]u32{ indices.graphicsFamily.?, indices.presentFamily.? };
     const uniqueQueueFamilies = if (indices.graphicsFamily.? == indices.presentFamily.?)
         all_queue_families[0..1]
     else
@@ -1018,12 +1018,12 @@ fn drawFrame() !void {
     var imageIndex: u32 = undefined;
     try checkSuccess(c.vkAcquireNextImageKHR(global_device, swapChain, maxInt(u64), imageAvailableSemaphores[currentFrame], null, &imageIndex));
 
-    var waitSemaphores = []c.VkSemaphore{imageAvailableSemaphores[currentFrame]};
-    var waitStages = []c.VkPipelineStageFlags{c.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    var waitSemaphores = [_]c.VkSemaphore{imageAvailableSemaphores[currentFrame]};
+    var waitStages = [_]c.VkPipelineStageFlags{c.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
-    const signalSemaphores = []c.VkSemaphore{renderFinishedSemaphores[currentFrame]};
+    const signalSemaphores = [_]c.VkSemaphore{renderFinishedSemaphores[currentFrame]};
 
-    var submitInfo = []c.VkSubmitInfo{c.VkSubmitInfo{
+    var submitInfo = [_]c.VkSubmitInfo{c.VkSubmitInfo{
         .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .waitSemaphoreCount = 1,
         .pWaitSemaphores = &waitSemaphores,
@@ -1038,7 +1038,7 @@ fn drawFrame() !void {
 
     try checkSuccess(c.vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]));
 
-    const swapChains = []c.VkSwapchainKHR{swapChain};
+    const swapChains = [_]c.VkSwapchainKHR{swapChain};
     const presentInfo = c.VkPresentInfoKHR{
         .sType = c.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 
