@@ -11,7 +11,7 @@ pub fn build(b: *Builder) !void {
     exe.linkSystemLibrary("c");
 
     b.default_step.dependOn(&exe.step);
-    b.installArtifact(exe);
+    exe.install();
 
     const run_step = b.step("run", "Run the app");
     const run_cmd = exe.run();
