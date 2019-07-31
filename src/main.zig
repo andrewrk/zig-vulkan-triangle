@@ -593,7 +593,7 @@ fn chooseSwapExtent(capabilities: c.VkSurfaceCapabilitiesKHR) c.VkExtent2D {
 fn createSwapChain(allocator: *Allocator) !void {
     var swapChainSupport = try querySwapChainSupport(allocator, physicalDevice);
     defer swapChainSupport.deinit();
-    
+
     const surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats.toSlice());
     const presentMode = chooseSwapPresentMode(swapChainSupport.presentModes.toSlice());
     const extent = chooseSwapExtent(swapChainSupport.capabilities);
@@ -888,7 +888,7 @@ extern fn debugCallback(
     return c.VK_FALSE;
 }
 
-fn setupDebugCallback() !void {
+fn setupDebugCallback() error{FailedToSetUpDebugCallback}!void {
     if (!enableValidationLayers) return;
 
     var createInfo = c.VkDebugReportCallbackCreateInfoEXT{
