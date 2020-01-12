@@ -25,10 +25,10 @@ fn addShader(b: *Builder, exe: var, in_file: []const u8, out_file: []const u8) !
     // example:
     // glslc -o shaders/vert.spv shaders/shader.vert
     const dirname = "shaders";
-    const full_in = try path.join(b.allocator, [_][]const u8{ dirname, in_file });
-    const full_out = try path.join(b.allocator, [_][]const u8{ dirname, out_file });
+    const full_in = try path.join(b.allocator, &[_][]const u8{ dirname, in_file });
+    const full_out = try path.join(b.allocator, &[_][]const u8{ dirname, out_file });
 
-    const run_cmd = b.addSystemCommand([_][]const u8{
+    const run_cmd = b.addSystemCommand(&[_][]const u8{
         "glslc",
         "-o",
         full_out,
