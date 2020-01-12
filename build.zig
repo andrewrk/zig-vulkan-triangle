@@ -6,6 +6,7 @@ pub fn build(b: *Builder) !void {
     const mode = b.standardReleaseOptions();
     const exe = b.addExecutable("zig-vulkan-triangle", "src/main.zig");
     exe.setBuildMode(mode);
+    exe.addLibPath("/usr/lib64"); //needed on some systems
     exe.linkSystemLibrary("glfw");
     exe.linkSystemLibrary("vulkan");
     exe.linkSystemLibrary("c");
@@ -24,6 +25,7 @@ pub fn build(b: *Builder) !void {
 fn addShader(b: *Builder, exe: var, in_file: []const u8, out_file: []const u8) !void {
     // example:
     // glslc -o shaders/vert.spv shaders/shader.vert
+
     const dirname = "shaders";
     const full_in = try path.join(b.allocator, &[_][]const u8{ dirname, in_file });
     const full_out = try path.join(b.allocator, &[_][]const u8{ dirname, out_file });
