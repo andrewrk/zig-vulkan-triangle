@@ -65,7 +65,7 @@ const SwapChainSupportDetails = struct {
             .formats = std.ArrayList(c.VkSurfaceFormatKHR).init(allocator),
             .presentModes = std.ArrayList(c.VkPresentModeKHR).init(allocator),
         };
-        const slice = @sliceToBytes(@as(*[1]c.VkSurfaceCapabilitiesKHR, &result.capabilities)[0..1]);
+        const slice = mem.sliceAsBytes(@as(*[1]c.VkSurfaceCapabilitiesKHR, &result.capabilities)[0..1]);
         std.mem.set(u8, slice, 0);
         return result;
     }
@@ -170,7 +170,9 @@ fn createCommandBuffers(allocator: *Allocator) !void {
 
         try checkSuccess(c.vkBeginCommandBuffer(commandBuffers[i], &beginInfo));
 
-        const clearColor = c.VkClearValue{ .color = c.VkClearColorValue{ .float32 = [_]f32{ 0.0, 0.0, 0.0, 1.0 } } };
+        const clearColor = [1]c.VkClearValue{c.VkClearValue{
+            .color = c.VkClearColorValue{ .float32 = [_]f32{ 0.0, 0.0, 0.0, 1.0 } },
+        }};
 
         const renderPassInfo = c.VkRenderPassBeginInfo{
             .sType = c.VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -259,7 +261,7 @@ fn createShaderModule(code: []align(@alignOf(u32)) const u8) !c.VkShaderModule {
     const createInfo = c.VkShaderModuleCreateInfo{
         .sType = c.VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
         .codeSize = code.len,
-        .pCode = @bytesToSlice(u32, code).ptr,
+        .pCode = mem.bytesAsSlice(u32, code).ptr,
 
         .pNext = null,
         .flags = 0,
@@ -272,14 +274,11 @@ fn createShaderModule(code: []align(@alignOf(u32)) const u8) !c.VkShaderModule {
 }
 
 fn createGraphicsPipeline(allocator: *Allocator) !void {
-    const vertShaderCode = try std.fs.cwd().readFileAllocAligned(allocator, "shaders/vert.spv", 1<<20, @alignOf(u32));
-    defer allocator.free(vertShaderCode);
+    const vertShaderCode align(4) = @embedFile("../shaders/vert.spv").*;
+    const fragShaderCode align(4) = @embedFile("../shaders/frag.spv").*;
 
-    const fragShaderCode = try std.fs.cwd().readFileAllocAligned(allocator, "shaders/frag.spv", 1<<20, @alignOf(u32));
-    defer allocator.free(fragShaderCode);
-
-    const vertShaderModule = try createShaderModule(vertShaderCode);
-    const fragShaderModule = try createShaderModule(fragShaderCode);
+    const vertShaderModule = try createShaderModule(&vertShaderCode);
+    const fragShaderModule = try createShaderModule(&fragShaderCode);
 
     const vertShaderStageInfo = c.VkPipelineShaderStageCreateInfo{
         .sType = c.VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -463,10 +462,10 @@ fn createRenderPass() !void {
         .flags = 0,
     };
 
-    const colorAttachmentRef = c.VkAttachmentReference{
+    const colorAttachmentRef = [1]c.VkAttachmentReference{c.VkAttachmentReference{
         .attachment = 0,
         .layout = c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-    };
+    }};
 
     const subpass = [_]c.VkSubpassDescription{c.VkSubpassDescription{
         .pipelineBindPoint = c.VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -594,8 +593,8 @@ fn createSwapChain(allocator: *Allocator) !void {
     var swapChainSupport = try querySwapChainSupport(allocator, physicalDevice);
     defer swapChainSupport.deinit();
 
-    const surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats.toSlice());
-    const presentMode = chooseSwapPresentMode(swapChainSupport.presentModes.toSlice());
+    const surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats.items);
+    const presentMode = chooseSwapPresentMode(swapChainSupport.presentModes.items);
     const extent = chooseSwapExtent(swapChainSupport.capabilities);
 
     var imageCount: u32 = swapChainSupport.capabilities.minImageCount + 1;
@@ -731,7 +730,7 @@ fn createLogicalDevice(allocator: *Allocator) !void {
     const createInfo = c.VkDeviceCreateInfo{
         .sType = c.VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 
-        .queueCreateInfoCount = @intCast(u32, queueCreateInfos.len),
+        .queueCreateInfoCount = @intCast(u32, queueCreateInfos.items.len),
         .pQueueCreateInfos = queueCreateInfos.items.ptr,
 
         .pEnabledFeatures = &deviceFeatures,
@@ -814,7 +813,7 @@ fn isDeviceSuitable(allocator: *Allocator, device: c.VkPhysicalDevice) !bool {
     if (extensionsSupported) {
         var swapChainSupport = try querySwapChainSupport(allocator, device);
         defer swapChainSupport.deinit();
-        swapChainAdequate = swapChainSupport.formats.len != 0 and swapChainSupport.presentModes.len != 0;
+        swapChainAdequate = swapChainSupport.formats.items.len != 0 and swapChainSupport.presentModes.items.len != 0;
     }
 
     return indices.isComplete() and extensionsSupported and swapChainAdequate;
@@ -852,14 +851,15 @@ fn checkDeviceExtensionSupport(allocator: *Allocator, device: c.VkPhysicalDevice
     defer allocator.free(availableExtensions);
     try checkSuccess(c.vkEnumerateDeviceExtensionProperties(device, null, &extensionCount, availableExtensions.ptr));
 
-    var requiredExtensions = std.HashMap([*]const u8, void, hash_cstr, eql_cstr).init(allocator);
+    const CStrHashMap = std.AutoHashMap([*:0]const u8, void);
+    var requiredExtensions = CStrHashMap.init(allocator);
     defer requiredExtensions.deinit();
     for (deviceExtensions) |device_ext| {
         _ = try requiredExtensions.put(device_ext, {});
     }
 
     for (availableExtensions) |extension| {
-        _ = requiredExtensions.remove(&extension.extensionName);
+        _ = requiredExtensions.remove(@ptrCast([*:0]const u8, &extension.extensionName));
     }
 
     return requiredExtensions.count() == 0;
@@ -874,17 +874,17 @@ fn createSurface(window: *c.GLFWwindow) !void {
 // TODO https://github.com/ziglang/zig/issues/661
 // Doesn't work on Windows until the above is fixed, because
 // this function needs to be stdcallcc on Windows.
-extern fn debugCallback(
+fn debugCallback(
     flags: c.VkDebugReportFlagsEXT,
     objType: c.VkDebugReportObjectTypeEXT,
     obj: u64,
     location: usize,
     code: i32,
-    layerPrefix: [*]const u8,
-    msg: [*]const u8,
+    layerPrefix: [*:0]const u8,
+    msg: [*:0]const u8,
     userData: ?*c_void,
-) c.VkBool32 {
-    std.debug.warn("validation layer: {s}\n", .{@ptrCast([*:0] const u8, msg)});
+) callconv(.C) c.VkBool32 {
+    std.debug.warn("validation layer: {s}\n", .{msg});
     return c.VK_FALSE;
 }
 
@@ -1060,7 +1060,7 @@ fn drawFrame() !void {
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-fn hash_cstr(a: [*]const u8) u32 {
+fn hash_cstr(a: [*:0]const u8) u64 {
     // FNV 32-bit hash
     var h: u32 = 2166136261;
     var i: usize = 0;
@@ -1071,6 +1071,6 @@ fn hash_cstr(a: [*]const u8) u32 {
     return h;
 }
 
-fn eql_cstr(a: [*]const u8, b: [*]const u8) bool {
-    return std.cstr.cmp(@ptrCast([*:0] const u8, a), @ptrCast([*:0] const u8, b) ) == 0;
+fn eql_cstr(a: [*:0]const u8, b: [*:0]const u8) bool {
+    return std.cstr.cmp(a, b) == 0;
 }
