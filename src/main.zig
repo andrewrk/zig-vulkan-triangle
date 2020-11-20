@@ -851,7 +851,13 @@ fn checkDeviceExtensionSupport(allocator: *Allocator, device: c.VkPhysicalDevice
     defer allocator.free(availableExtensions);
     try checkSuccess(c.vkEnumerateDeviceExtensionProperties(device, null, &extensionCount, availableExtensions.ptr));
 
-    const CStrHashMap = std.AutoHashMap([*:0]const u8, void);
+    const CStrHashMap = std.HashMap(
+        [*:0]const u8,
+        void,
+        hash_cstr,
+        eql_cstr,
+        std.hash_map.DefaultMaxLoadPercentage,
+    );
     var requiredExtensions = CStrHashMap.init(allocator);
     defer requiredExtensions.deinit();
     for (deviceExtensions) |device_ext| {
