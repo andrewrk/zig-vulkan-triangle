@@ -4,13 +4,14 @@ const mem = std.mem;
 const Allocator = mem.Allocator;
 const c = @import("vulkan.zig");
 const maxInt = std.math.maxInt;
+const builtin = @import("builtin");
 
 const WIDTH = 800;
 const HEIGHT = 600;
 
 const MAX_FRAMES_IN_FLIGHT = 2;
 
-const enableValidationLayers = std.debug.runtime_safety;
+const enableValidationLayers = if (builtin.os.tag == .macos) false else std.debug.runtime_safety;
 const validationLayers = [_][*:0]const u8{"VK_LAYER_LUNARG_standard_validation"};
 const deviceExtensions = [_][*:0]const u8{c.VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
