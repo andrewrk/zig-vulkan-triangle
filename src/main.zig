@@ -854,8 +854,22 @@ fn checkDeviceExtensionSupport(allocator: *Allocator, device: c.VkPhysicalDevice
     const CStrHashMap = std.HashMap(
         [*:0]const u8,
         void,
-        hash_cstr,
-        eql_cstr,
+        struct {
+            pub fn hash(self: @This(), a: [*:0]const u8) u64 {
+                // FNV 64-bit hash
+                var h: u64 = 14695981039346656037;
+                var i: usize = 0;
+                while (a[i] != 0) : (i += 1) {
+                    h ^= a[i];
+                    h *%= 1099511628211;
+                }
+                return h;
+            }
+
+            pub fn eql(self: @This(), a: [*:0]const u8, b: [*:0]const u8) bool {
+                return std.cstr.cmp(a, b) == 0;
+            }
+        },
         std.hash_map.DefaultMaxLoadPercentage,
     );
     var requiredExtensions = CStrHashMap.init(allocator);
@@ -1064,19 +1078,4 @@ fn drawFrame() !void {
     try checkSuccess(c.vkQueuePresentKHR(presentQueue, &presentInfo));
 
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-}
-
-fn hash_cstr(a: [*:0]const u8) u64 {
-    // FNV 32-bit hash
-    var h: u32 = 2166136261;
-    var i: usize = 0;
-    while (a[i] != 0) : (i += 1) {
-        h ^= a[i];
-        h *%= 16777619;
-    }
-    return h;
-}
-
-fn eql_cstr(a: [*:0]const u8, b: [*:0]const u8) bool {
-    return std.cstr.cmp(a, b) == 0;
 }
