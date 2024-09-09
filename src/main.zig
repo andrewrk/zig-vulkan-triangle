@@ -1,1082 +1,601 @@
+const builtin = @import("builtin");
 const std = @import("std");
-const assert = std.debug.assert;
-const mem = std.mem;
-const Allocator = mem.Allocator;
-const c = @import("vulkan.zig");
-const maxInt = std.math.maxInt;
+const Allocator = std.mem.Allocator;
 
-const WIDTH = 800;
-const HEIGHT = 600;
+const shader_triangle_vert = @embedFile("shaders.triangle.vert");
+const shader_triangle_frag = @embedFile("shaders.triangle.frag");
+const xcb = @import("xcb.zig");
+const GraphicsContext = @import("GraphicsContext.zig");
+const Swapchain = @import("Swapchain.zig");
 
-const MAX_FRAMES_IN_FLIGHT = 2;
+const vk = @import("vulkan");
+pub const xcb_connection_t = xcb.connection_t;
+pub const xcb_visualid_t = xcb.visualid_t;
+pub const xcb_window_t = xcb.window_t;
 
-const enableValidationLayers = std.debug.runtime_safety;
-const validationLayers = [_][*:0]const u8{"VK_LAYER_LUNARG_standard_validation"};
-const deviceExtensions = [_][*:0]const u8{c.VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+const app_name = "vulkan-zig triangle example";
 
-var currentFrame: usize = 0;
-var instance: c.VkInstance = undefined;
-var callback: c.VkDebugReportCallbackEXT = undefined;
-var surface: c.VkSurfaceKHR = undefined;
-var physicalDevice: c.VkPhysicalDevice = undefined;
-var global_device: c.VkDevice = undefined;
-var graphicsQueue: c.VkQueue = undefined;
-var presentQueue: c.VkQueue = undefined;
-var swapChainImages: []c.VkImage = undefined;
-var swapChain: c.VkSwapchainKHR = undefined;
-var swapChainImageFormat: c.VkFormat = undefined;
-var swapChainExtent: c.VkExtent2D = undefined;
-var swapChainImageViews: []c.VkImageView = undefined;
-var renderPass: c.VkRenderPass = undefined;
-var pipelineLayout: c.VkPipelineLayout = undefined;
-var graphicsPipeline: c.VkPipeline = undefined;
-var swapChainFramebuffers: []c.VkFramebuffer = undefined;
-var commandPool: c.VkCommandPool = undefined;
-var commandBuffers: []c.VkCommandBuffer = undefined;
+const enable_validation_layers = builtin.mode == .Debug;
 
-var imageAvailableSemaphores: [MAX_FRAMES_IN_FLIGHT]c.VkSemaphore = undefined;
-var renderFinishedSemaphores: [MAX_FRAMES_IN_FLIGHT]c.VkSemaphore = undefined;
-var inFlightFences: [MAX_FRAMES_IN_FLIGHT]c.VkFence = undefined;
+const Vertex = struct {
+    const binding_description = vk.VertexInputBindingDescription{
+        .binding = 0,
+        .stride = @sizeOf(Vertex),
+        .input_rate = .vertex,
+    };
 
-const QueueFamilyIndices = struct {
-    graphicsFamily: ?u32,
-    presentFamily: ?u32,
+    const attribute_description = [_]vk.VertexInputAttributeDescription{
+        .{
+            .binding = 0,
+            .location = 0,
+            .format = .r32g32_sfloat,
+            .offset = @offsetOf(Vertex, "pos"),
+        },
+        .{
+            .binding = 0,
+            .location = 1,
+            .format = .r32g32b32_sfloat,
+            .offset = @offsetOf(Vertex, "color"),
+        },
+    };
 
-    fn init() QueueFamilyIndices {
-        return QueueFamilyIndices{
-            .graphicsFamily = null,
-            .presentFamily = null,
-        };
-    }
-
-    fn isComplete(self: QueueFamilyIndices) bool {
-        return self.graphicsFamily != null and self.presentFamily != null;
-    }
+    pos: [2]f32,
+    color: [3]f32,
 };
 
-const SwapChainSupportDetails = struct {
-    capabilities: c.VkSurfaceCapabilitiesKHR,
-    formats: std.ArrayList(c.VkSurfaceFormatKHR),
-    presentModes: std.ArrayList(c.VkPresentModeKHR),
-
-    fn init(allocator: *Allocator) SwapChainSupportDetails {
-        var result = SwapChainSupportDetails{
-            .capabilities = undefined,
-            .formats = std.ArrayList(c.VkSurfaceFormatKHR).init(allocator),
-            .presentModes = std.ArrayList(c.VkPresentModeKHR).init(allocator),
-        };
-        const slice = mem.sliceAsBytes(@as(*[1]c.VkSurfaceCapabilitiesKHR, &result.capabilities)[0..1]);
-        std.mem.set(u8, slice, 0);
-        return result;
-    }
-
-    fn deinit(self: *SwapChainSupportDetails) void {
-        self.formats.deinit();
-        self.presentModes.deinit();
-    }
+const vertices = [_]Vertex{
+    .{ .pos = .{ 0, -0.5 }, .color = .{ 1, 0, 0 } },
+    .{ .pos = .{ 0.5, 0.5 }, .color = .{ 0, 1, 0 } },
+    .{ .pos = .{ -0.5, 0.5 }, .color = .{ 0, 0, 1 } },
 };
 
 pub fn main() !void {
-    if (c.glfwInit() == 0) return error.GlfwInitFailed;
-    defer c.glfwTerminate();
+    var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = general_purpose_allocator.deinit();
+    const gpa = general_purpose_allocator.allocator();
 
-    c.glfwWindowHint(c.GLFW_CLIENT_API, c.GLFW_NO_API);
-    c.glfwWindowHint(c.GLFW_RESIZABLE, c.GLFW_FALSE);
+    var extent: vk.Extent2D = .{ .width = 800, .height = 600 };
 
-    const window = c.glfwCreateWindow(WIDTH, HEIGHT, "Zig Vulkan Triangle", null, null) orelse return error.GlfwCreateWindowFailed;
-    defer c.glfwDestroyWindow(window);
+    std.log.debug("connecting to X11", .{});
 
-    const allocator = std.heap.c_allocator;
-    try initVulkan(allocator, window);
-
-    while (c.glfwWindowShouldClose(window) == 0) {
-        c.glfwPollEvents();
-        try drawFrame();
+    var scr: c_int = undefined;
+    const connection = xcb.connect(null, &scr).?;
+    if (xcb.connection_has_error(connection) != 0) {
+        @panic("Could not find a compatible Vulkan ICD");
     }
-    try checkSuccess(c.vkDeviceWaitIdle(global_device));
-
-    cleanup();
-}
-
-fn cleanup() void {
-    var i: usize = 0;
-    while (i < MAX_FRAMES_IN_FLIGHT) : (i += 1) {
-        c.vkDestroySemaphore(global_device, renderFinishedSemaphores[i], null);
-        c.vkDestroySemaphore(global_device, imageAvailableSemaphores[i], null);
-        c.vkDestroyFence(global_device, inFlightFences[i], null);
+    const setup = xcb.get_setup(connection);
+    var iter = xcb.setup_roots_iterator(setup);
+    while (scr > 0) : (scr -= 1) {
+        xcb.screen_next(&iter);
     }
+    const screen = iter.data;
 
-    c.vkDestroyCommandPool(global_device, commandPool, null);
-
-    for (swapChainFramebuffers) |framebuffer| {
-        c.vkDestroyFramebuffer(global_device, framebuffer, null);
-    }
-
-    c.vkDestroyPipeline(global_device, graphicsPipeline, null);
-    c.vkDestroyPipelineLayout(global_device, pipelineLayout, null);
-    c.vkDestroyRenderPass(global_device, renderPass, null);
-
-    for (swapChainImageViews) |imageView| {
-        c.vkDestroyImageView(global_device, imageView, null);
-    }
-
-    c.vkDestroySwapchainKHR(global_device, swapChain, null);
-    c.vkDestroyDevice(global_device, null);
-
-    if (enableValidationLayers) {
-        DestroyDebugReportCallbackEXT(null);
-    }
-
-    c.vkDestroySurfaceKHR(instance, surface, null);
-    c.vkDestroyInstance(instance, null);
-}
-
-fn initVulkan(allocator: *Allocator, window: *c.GLFWwindow) !void {
-    try createInstance(allocator);
-    try setupDebugCallback();
-    try createSurface(window);
-    try pickPhysicalDevice(allocator);
-    try createLogicalDevice(allocator);
-    try createSwapChain(allocator);
-    try createImageViews(allocator);
-    try createRenderPass();
-    try createGraphicsPipeline(allocator);
-    try createFramebuffers(allocator);
-    try createCommandPool(allocator);
-    try createCommandBuffers(allocator);
-    try createSyncObjects();
-}
-
-fn createCommandBuffers(allocator: *Allocator) !void {
-    commandBuffers = try allocator.alloc(c.VkCommandBuffer, swapChainFramebuffers.len);
-
-    const allocInfo = c.VkCommandBufferAllocateInfo{
-        .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .commandPool = commandPool,
-        .level = c.VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = @intCast(u32, commandBuffers.len),
-        .pNext = null,
+    std.log.debug("opening window", .{});
+    const window = xcb.generate_id(connection);
+    const value_mask = xcb.CW.BACK_PIXEL | xcb.CW.EVENT_MASK;
+    const value_list = [_]u32{
+        screen.black_pixel,
+        xcb.EVENT_MASK.KEY_RELEASE |
+            xcb.EVENT_MASK.KEY_PRESS |
+            xcb.EVENT_MASK.EXPOSURE |
+            xcb.EVENT_MASK.STRUCTURE_NOTIFY |
+            xcb.EVENT_MASK.POINTER_MOTION |
+            xcb.EVENT_MASK.BUTTON_PRESS |
+            xcb.EVENT_MASK.BUTTON_RELEASE,
     };
 
-    try checkSuccess(c.vkAllocateCommandBuffers(global_device, &allocInfo, commandBuffers.ptr));
-
-    for (commandBuffers) |command_buffer, i| {
-        const beginInfo = c.VkCommandBufferBeginInfo{
-            .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-            .flags = c.VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
-            .pNext = null,
-            .pInheritanceInfo = null,
-        };
-
-        try checkSuccess(c.vkBeginCommandBuffer(commandBuffers[i], &beginInfo));
-
-        const clearColor = [1]c.VkClearValue{c.VkClearValue{
-            .color = c.VkClearColorValue{ .float32 = [_]f32{ 0.0, 0.0, 0.0, 1.0 } },
-        }};
-
-        const renderPassInfo = c.VkRenderPassBeginInfo{
-            .sType = c.VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-            .renderPass = renderPass,
-            .framebuffer = swapChainFramebuffers[i],
-            .renderArea = c.VkRect2D{
-                .offset = c.VkOffset2D{ .x = 0, .y = 0 },
-                .extent = swapChainExtent,
-            },
-            .clearValueCount = 1,
-            .pClearValues = @as(*const [1]c.VkClearValue, &clearColor),
-
-            .pNext = null,
-        };
-
-        c.vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, c.VK_SUBPASS_CONTENTS_INLINE);
-        {
-            c.vkCmdBindPipeline(commandBuffers[i], c.VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-            c.vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
-        }
-        c.vkCmdEndRenderPass(commandBuffers[i]);
-
-        try checkSuccess(c.vkEndCommandBuffer(commandBuffers[i]));
-    }
-}
-
-fn createSyncObjects() !void {
-    const semaphoreInfo = c.VkSemaphoreCreateInfo{
-        .sType = c.VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-        .pNext = null,
-        .flags = 0,
-    };
-
-    const fenceInfo = c.VkFenceCreateInfo{
-        .sType = c.VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-        .flags = c.VK_FENCE_CREATE_SIGNALED_BIT,
-        .pNext = null,
-    };
-
-    var i: usize = 0;
-    while (i < MAX_FRAMES_IN_FLIGHT) : (i += 1) {
-        try checkSuccess(c.vkCreateSemaphore(global_device, &semaphoreInfo, null, &imageAvailableSemaphores[i]));
-        try checkSuccess(c.vkCreateSemaphore(global_device, &semaphoreInfo, null, &renderFinishedSemaphores[i]));
-        try checkSuccess(c.vkCreateFence(global_device, &fenceInfo, null, &inFlightFences[i]));
-    }
-}
-
-fn createCommandPool(allocator: *Allocator) !void {
-    const queueFamilyIndices = try findQueueFamilies(allocator, physicalDevice);
-
-    const poolInfo = c.VkCommandPoolCreateInfo{
-        .sType = c.VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-        .queueFamilyIndex = queueFamilyIndices.graphicsFamily.?,
-
-        .pNext = null,
-        .flags = 0,
-    };
-
-    try checkSuccess(c.vkCreateCommandPool(global_device, &poolInfo, null, &commandPool));
-}
-
-fn createFramebuffers(allocator: *Allocator) !void {
-    swapChainFramebuffers = try allocator.alloc(c.VkFramebuffer, swapChainImageViews.len);
-
-    for (swapChainImageViews) |swap_chain_image_view, i| {
-        const attachments = [_]c.VkImageView{swap_chain_image_view};
-
-        const framebufferInfo = c.VkFramebufferCreateInfo{
-            .sType = c.VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-            .renderPass = renderPass,
-            .attachmentCount = 1,
-            .pAttachments = &attachments,
-            .width = swapChainExtent.width,
-            .height = swapChainExtent.height,
-            .layers = 1,
-
-            .pNext = null,
-            .flags = 0,
-        };
-
-        try checkSuccess(c.vkCreateFramebuffer(global_device, &framebufferInfo, null, &swapChainFramebuffers[i]));
-    }
-}
-
-fn createShaderModule(code: []align(@alignOf(u32)) const u8) !c.VkShaderModule {
-    const createInfo = c.VkShaderModuleCreateInfo{
-        .sType = c.VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-        .codeSize = code.len,
-        .pCode = mem.bytesAsSlice(u32, code).ptr,
-
-        .pNext = null,
-        .flags = 0,
-    };
-
-    var shaderModule: c.VkShaderModule = undefined;
-    try checkSuccess(c.vkCreateShaderModule(global_device, &createInfo, null, &shaderModule));
-
-    return shaderModule;
-}
-
-fn createGraphicsPipeline(allocator: *Allocator) !void {
-    const vertShaderCode align(4) = @embedFile("../shaders/vert.spv").*;
-    const fragShaderCode align(4) = @embedFile("../shaders/frag.spv").*;
-
-    const vertShaderModule = try createShaderModule(&vertShaderCode);
-    const fragShaderModule = try createShaderModule(&fragShaderCode);
-
-    const vertShaderStageInfo = c.VkPipelineShaderStageCreateInfo{
-        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-        .stage = c.VK_SHADER_STAGE_VERTEX_BIT,
-        .module = vertShaderModule,
-        .pName = "main",
-
-        .pNext = null,
-        .flags = 0,
-        .pSpecializationInfo = null,
-    };
-
-    const fragShaderStageInfo = c.VkPipelineShaderStageCreateInfo{
-        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-        .stage = c.VK_SHADER_STAGE_FRAGMENT_BIT,
-        .module = fragShaderModule,
-        .pName = "main",
-        .pNext = null,
-        .flags = 0,
-
-        .pSpecializationInfo = null,
-    };
-
-    const shaderStages = [_]c.VkPipelineShaderStageCreateInfo{ vertShaderStageInfo, fragShaderStageInfo };
-
-    const vertexInputInfo = c.VkPipelineVertexInputStateCreateInfo{
-        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .vertexBindingDescriptionCount = 0,
-        .vertexAttributeDescriptionCount = 0,
-
-        .pVertexBindingDescriptions = null,
-        .pVertexAttributeDescriptions = null,
-        .pNext = null,
-        .flags = 0,
-    };
-
-    const inputAssembly = c.VkPipelineInputAssemblyStateCreateInfo{
-        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-        .topology = c.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-        .primitiveRestartEnable = c.VK_FALSE,
-        .pNext = null,
-        .flags = 0,
-    };
-
-    const viewport = [_]c.VkViewport{c.VkViewport{
-        .x = 0.0,
-        .y = 0.0,
-        .width = @intToFloat(f32, swapChainExtent.width),
-        .height = @intToFloat(f32, swapChainExtent.height),
-        .minDepth = 0.0,
-        .maxDepth = 1.0,
-    }};
-
-    const scissor = [_]c.VkRect2D{c.VkRect2D{
-        .offset = c.VkOffset2D{ .x = 0, .y = 0 },
-        .extent = swapChainExtent,
-    }};
-
-    const viewportState = c.VkPipelineViewportStateCreateInfo{
-        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-        .viewportCount = 1,
-        .pViewports = &viewport,
-        .scissorCount = 1,
-        .pScissors = &scissor,
-
-        .pNext = null,
-        .flags = 0,
-    };
-
-    const rasterizer = c.VkPipelineRasterizationStateCreateInfo{
-        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-        .depthClampEnable = c.VK_FALSE,
-        .rasterizerDiscardEnable = c.VK_FALSE,
-        .polygonMode = c.VK_POLYGON_MODE_FILL,
-        .lineWidth = 1.0,
-        .cullMode = @intCast(u32, @enumToInt(c.VK_CULL_MODE_BACK_BIT)),
-        .frontFace = c.VK_FRONT_FACE_CLOCKWISE,
-        .depthBiasEnable = c.VK_FALSE,
-
-        .pNext = null,
-        .flags = 0,
-        .depthBiasConstantFactor = 0,
-        .depthBiasClamp = 0,
-        .depthBiasSlopeFactor = 0,
-    };
-
-    const multisampling = c.VkPipelineMultisampleStateCreateInfo{
-        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-        .sampleShadingEnable = c.VK_FALSE,
-        .rasterizationSamples = c.VK_SAMPLE_COUNT_1_BIT,
-        .pNext = null,
-        .flags = 0,
-        .minSampleShading = 0,
-        .pSampleMask = null,
-        .alphaToCoverageEnable = 0,
-        .alphaToOneEnable = 0,
-    };
-
-    const colorBlendAttachment = c.VkPipelineColorBlendAttachmentState{
-        .colorWriteMask = c.VK_COLOR_COMPONENT_R_BIT | c.VK_COLOR_COMPONENT_G_BIT | c.VK_COLOR_COMPONENT_B_BIT | c.VK_COLOR_COMPONENT_A_BIT,
-        .blendEnable = c.VK_FALSE,
-
-        .srcColorBlendFactor = c.VK_BLEND_FACTOR_ZERO,
-        .dstColorBlendFactor = c.VK_BLEND_FACTOR_ZERO,
-        .colorBlendOp = c.VK_BLEND_OP_ADD,
-        .srcAlphaBlendFactor = c.VK_BLEND_FACTOR_ZERO,
-        .dstAlphaBlendFactor = c.VK_BLEND_FACTOR_ZERO,
-        .alphaBlendOp = c.VK_BLEND_OP_ADD,
-    };
-
-    const colorBlending = c.VkPipelineColorBlendStateCreateInfo{
-        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-        .logicOpEnable = c.VK_FALSE,
-        .logicOp = c.VK_LOGIC_OP_COPY,
-        .attachmentCount = 1,
-        .pAttachments = &colorBlendAttachment,
-        .blendConstants = [_]f32{ 0, 0, 0, 0 },
-
-        .pNext = null,
-        .flags = 0,
-    };
-
-    const pipelineLayoutInfo = c.VkPipelineLayoutCreateInfo{
-        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 0,
-        .pushConstantRangeCount = 0,
-        .pNext = null,
-        .flags = 0,
-        .pSetLayouts = null,
-        .pPushConstantRanges = null,
-    };
-
-    try checkSuccess(c.vkCreatePipelineLayout(global_device, &pipelineLayoutInfo, null, &pipelineLayout));
-
-    const pipelineInfo = [_]c.VkGraphicsPipelineCreateInfo{c.VkGraphicsPipelineCreateInfo{
-        .sType = c.VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-        .stageCount = @intCast(u32, shaderStages.len),
-        .pStages = &shaderStages,
-        .pVertexInputState = &vertexInputInfo,
-        .pInputAssemblyState = &inputAssembly,
-        .pViewportState = &viewportState,
-        .pRasterizationState = &rasterizer,
-        .pMultisampleState = &multisampling,
-        .pColorBlendState = &colorBlending,
-        .layout = pipelineLayout,
-        .renderPass = renderPass,
-        .subpass = 0,
-        .basePipelineHandle = null,
-
-        .pNext = null,
-        .flags = 0,
-        .pTessellationState = null,
-        .pDepthStencilState = null,
-        .pDynamicState = null,
-        .basePipelineIndex = 0,
-    }};
-
-    try checkSuccess(c.vkCreateGraphicsPipelines(
-        global_device,
-        null,
-        @intCast(u32, pipelineInfo.len),
-        &pipelineInfo,
-        null,
-        @as(*[1]c.VkPipeline, &graphicsPipeline),
-    ));
-
-    c.vkDestroyShaderModule(global_device, fragShaderModule, null);
-    c.vkDestroyShaderModule(global_device, vertShaderModule, null);
-}
-
-fn createRenderPass() !void {
-    const colorAttachment = c.VkAttachmentDescription{
-        .format = swapChainImageFormat,
-        .samples = c.VK_SAMPLE_COUNT_1_BIT,
-        .loadOp = c.VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
-        .stencilLoadOp = c.VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-        .stencilStoreOp = c.VK_ATTACHMENT_STORE_OP_DONT_CARE,
-        .initialLayout = c.VK_IMAGE_LAYOUT_UNDEFINED,
-        .finalLayout = c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        .flags = 0,
-    };
-
-    const colorAttachmentRef = [1]c.VkAttachmentReference{c.VkAttachmentReference{
-        .attachment = 0,
-        .layout = c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-    }};
-
-    const subpass = [_]c.VkSubpassDescription{c.VkSubpassDescription{
-        .pipelineBindPoint = c.VK_PIPELINE_BIND_POINT_GRAPHICS,
-        .colorAttachmentCount = 1,
-        .pColorAttachments = @as(*const [1]c.VkAttachmentReference, &colorAttachmentRef),
-
-        .flags = 0,
-        .inputAttachmentCount = 0,
-        .pInputAttachments = null,
-        .pResolveAttachments = null,
-        .pDepthStencilAttachment = null,
-        .preserveAttachmentCount = 0,
-        .pPreserveAttachments = null,
-    }};
-
-    const dependency = [_]c.VkSubpassDependency{c.VkSubpassDependency{
-        .srcSubpass = c.VK_SUBPASS_EXTERNAL,
-        .dstSubpass = 0,
-        .srcStageMask = c.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        .srcAccessMask = 0,
-        .dstStageMask = c.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        .dstAccessMask = c.VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | c.VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-
-        .dependencyFlags = 0,
-    }};
-
-    const renderPassInfo = c.VkRenderPassCreateInfo{
-        .sType = c.VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-        .attachmentCount = 1,
-        .pAttachments = @ptrCast(*const [1]c.VkAttachmentDescription, &colorAttachment),
-        .subpassCount = 1,
-        .pSubpasses = &subpass,
-        .dependencyCount = 1,
-        .pDependencies = &dependency,
-
-        .pNext = null,
-        .flags = 0,
-    };
-
-    try checkSuccess(c.vkCreateRenderPass(global_device, &renderPassInfo, null, &renderPass));
-}
-
-fn createImageViews(allocator: *Allocator) !void {
-    swapChainImageViews = try allocator.alloc(c.VkImageView, swapChainImages.len);
-    errdefer allocator.free(swapChainImageViews);
-
-    for (swapChainImages) |swap_chain_image, i| {
-        const createInfo = c.VkImageViewCreateInfo{
-            .sType = c.VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-            .image = swap_chain_image,
-            .viewType = c.VK_IMAGE_VIEW_TYPE_2D,
-            .format = swapChainImageFormat,
-            .components = c.VkComponentMapping{
-                .r = c.VK_COMPONENT_SWIZZLE_IDENTITY,
-                .g = c.VK_COMPONENT_SWIZZLE_IDENTITY,
-                .b = c.VK_COMPONENT_SWIZZLE_IDENTITY,
-                .a = c.VK_COMPONENT_SWIZZLE_IDENTITY,
-            },
-            .subresourceRange = c.VkImageSubresourceRange{
-                .aspectMask = c.VK_IMAGE_ASPECT_COLOR_BIT,
-                .baseMipLevel = 0,
-                .levelCount = 1,
-                .baseArrayLayer = 0,
-                .layerCount = 1,
-            },
-
-            .pNext = null,
-            .flags = 0,
-        };
-
-        try checkSuccess(c.vkCreateImageView(global_device, &createInfo, null, &swapChainImageViews[i]));
-    }
-}
-
-fn chooseSwapSurfaceFormat(availableFormats: []c.VkSurfaceFormatKHR) c.VkSurfaceFormatKHR {
-    if (availableFormats.len == 1 and availableFormats[0].format == c.VK_FORMAT_UNDEFINED) {
-        return c.VkSurfaceFormatKHR{
-            .format = c.VK_FORMAT_B8G8R8A8_UNORM,
-            .colorSpace = c.VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
-        };
-    }
-
-    for (availableFormats) |availableFormat| {
-        if (availableFormat.format == c.VK_FORMAT_B8G8R8A8_UNORM and
-            availableFormat.colorSpace == c.VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-        {
-            return availableFormat;
-        }
-    }
-
-    return availableFormats[0];
-}
-
-fn chooseSwapPresentMode(availablePresentModes: []c.VkPresentModeKHR) c.VkPresentModeKHR {
-    var bestMode: c.VkPresentModeKHR = c.VK_PRESENT_MODE_FIFO_KHR;
-
-    for (availablePresentModes) |availablePresentMode| {
-        if (availablePresentMode == c.VK_PRESENT_MODE_MAILBOX_KHR) {
-            return availablePresentMode;
-        } else if (availablePresentMode == c.VK_PRESENT_MODE_IMMEDIATE_KHR) {
-            bestMode = availablePresentMode;
-        }
-    }
-
-    return bestMode;
-}
-
-fn chooseSwapExtent(capabilities: c.VkSurfaceCapabilitiesKHR) c.VkExtent2D {
-    if (capabilities.currentExtent.width != maxInt(u32)) {
-        return capabilities.currentExtent;
-    } else {
-        var actualExtent = c.VkExtent2D{
-            .width = WIDTH,
-            .height = HEIGHT,
-        };
-
-        actualExtent.width = std.math.max(capabilities.minImageExtent.width, std.math.min(capabilities.maxImageExtent.width, actualExtent.width));
-        actualExtent.height = std.math.max(capabilities.minImageExtent.height, std.math.min(capabilities.maxImageExtent.height, actualExtent.height));
-
-        return actualExtent;
-    }
-}
-
-fn createSwapChain(allocator: *Allocator) !void {
-    var swapChainSupport = try querySwapChainSupport(allocator, physicalDevice);
-    defer swapChainSupport.deinit();
-
-    const surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats.items);
-    const presentMode = chooseSwapPresentMode(swapChainSupport.presentModes.items);
-    const extent = chooseSwapExtent(swapChainSupport.capabilities);
-
-    var imageCount: u32 = swapChainSupport.capabilities.minImageCount + 1;
-    if (swapChainSupport.capabilities.maxImageCount > 0 and
-        imageCount > swapChainSupport.capabilities.maxImageCount)
-    {
-        imageCount = swapChainSupport.capabilities.maxImageCount;
-    }
-
-    const indices = try findQueueFamilies(allocator, physicalDevice);
-    const queueFamilyIndices = [_]u32{ indices.graphicsFamily.?, indices.presentFamily.? };
-
-    const different_families = indices.graphicsFamily.? != indices.presentFamily.?;
-
-    var createInfo = c.VkSwapchainCreateInfoKHR{
-        .sType = c.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-        .surface = surface,
-
-        .minImageCount = imageCount,
-        .imageFormat = surfaceFormat.format,
-        .imageColorSpace = surfaceFormat.colorSpace,
-        .imageExtent = extent,
-        .imageArrayLayers = 1,
-        .imageUsage = c.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-
-        .imageSharingMode = if (different_families) c.VK_SHARING_MODE_CONCURRENT else c.VK_SHARING_MODE_EXCLUSIVE,
-        .queueFamilyIndexCount = if (different_families) @as(u32, 2) else @as(u32, 0),
-        .pQueueFamilyIndices = if (different_families) &queueFamilyIndices else &([_]u32{ 0, 0 }),
-
-        .preTransform = swapChainSupport.capabilities.currentTransform,
-        .compositeAlpha = c.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-        .presentMode = presentMode,
-        .clipped = c.VK_TRUE,
-
-        .oldSwapchain = null,
-
-        .pNext = null,
-        .flags = 0,
-    };
-
-    try checkSuccess(c.vkCreateSwapchainKHR(global_device, &createInfo, null, &swapChain));
-
-    try checkSuccess(c.vkGetSwapchainImagesKHR(global_device, swapChain, &imageCount, null));
-    swapChainImages = try allocator.alloc(c.VkImage, imageCount);
-    try checkSuccess(c.vkGetSwapchainImagesKHR(global_device, swapChain, &imageCount, swapChainImages.ptr));
-
-    swapChainImageFormat = surfaceFormat.format;
-    swapChainExtent = extent;
-}
-
-fn createLogicalDevice(allocator: *Allocator) !void {
-    const indices = try findQueueFamilies(allocator, physicalDevice);
-
-    var queueCreateInfos = std.ArrayList(c.VkDeviceQueueCreateInfo).init(allocator);
-    defer queueCreateInfos.deinit();
-    const all_queue_families = [_]u32{ indices.graphicsFamily.?, indices.presentFamily.? };
-    const uniqueQueueFamilies = if (indices.graphicsFamily.? == indices.presentFamily.?)
-        all_queue_families[0..1]
-    else
-        all_queue_families[0..2];
-
-    var queuePriority: f32 = 1.0;
-    for (uniqueQueueFamilies) |queueFamily| {
-        const queueCreateInfo = c.VkDeviceQueueCreateInfo{
-            .sType = c.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-            .queueFamilyIndex = queueFamily,
-            .queueCount = 1,
-            .pQueuePriorities = &queuePriority,
-            .pNext = null,
-            .flags = 0,
-        };
-        try queueCreateInfos.append(queueCreateInfo);
-    }
-
-    const deviceFeatures = c.VkPhysicalDeviceFeatures{
-        .robustBufferAccess = 0,
-        .fullDrawIndexUint32 = 0,
-        .imageCubeArray = 0,
-        .independentBlend = 0,
-        .geometryShader = 0,
-        .tessellationShader = 0,
-        .sampleRateShading = 0,
-        .dualSrcBlend = 0,
-        .logicOp = 0,
-        .multiDrawIndirect = 0,
-        .drawIndirectFirstInstance = 0,
-        .depthClamp = 0,
-        .depthBiasClamp = 0,
-        .fillModeNonSolid = 0,
-        .depthBounds = 0,
-        .wideLines = 0,
-        .largePoints = 0,
-        .alphaToOne = 0,
-        .multiViewport = 0,
-        .samplerAnisotropy = 0,
-        .textureCompressionETC2 = 0,
-        .textureCompressionASTC_LDR = 0,
-        .textureCompressionBC = 0,
-        .occlusionQueryPrecise = 0,
-        .pipelineStatisticsQuery = 0,
-        .vertexPipelineStoresAndAtomics = 0,
-        .fragmentStoresAndAtomics = 0,
-        .shaderTessellationAndGeometryPointSize = 0,
-        .shaderImageGatherExtended = 0,
-        .shaderStorageImageExtendedFormats = 0,
-        .shaderStorageImageMultisample = 0,
-        .shaderStorageImageReadWithoutFormat = 0,
-        .shaderStorageImageWriteWithoutFormat = 0,
-        .shaderUniformBufferArrayDynamicIndexing = 0,
-        .shaderSampledImageArrayDynamicIndexing = 0,
-        .shaderStorageBufferArrayDynamicIndexing = 0,
-        .shaderStorageImageArrayDynamicIndexing = 0,
-        .shaderClipDistance = 0,
-        .shaderCullDistance = 0,
-        .shaderFloat64 = 0,
-        .shaderInt64 = 0,
-        .shaderInt16 = 0,
-        .shaderResourceResidency = 0,
-        .shaderResourceMinLod = 0,
-        .sparseBinding = 0,
-        .sparseResidencyBuffer = 0,
-        .sparseResidencyImage2D = 0,
-        .sparseResidencyImage3D = 0,
-        .sparseResidency2Samples = 0,
-        .sparseResidency4Samples = 0,
-        .sparseResidency8Samples = 0,
-        .sparseResidency16Samples = 0,
-        .sparseResidencyAliased = 0,
-        .variableMultisampleRate = 0,
-        .inheritedQueries = 0,
-    };
-
-    const createInfo = c.VkDeviceCreateInfo{
-        .sType = c.VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-
-        .queueCreateInfoCount = @intCast(u32, queueCreateInfos.items.len),
-        .pQueueCreateInfos = queueCreateInfos.items.ptr,
-
-        .pEnabledFeatures = &deviceFeatures,
-
-        .enabledExtensionCount = @intCast(u32, deviceExtensions.len),
-        .ppEnabledExtensionNames = &deviceExtensions,
-        .enabledLayerCount = if (enableValidationLayers) @intCast(u32, validationLayers.len) else 0,
-        .ppEnabledLayerNames = if (enableValidationLayers) &validationLayers else null,
-
-        .pNext = null,
-        .flags = 0,
-    };
-
-    try checkSuccess(c.vkCreateDevice(physicalDevice, &createInfo, null, &global_device));
-
-    c.vkGetDeviceQueue(global_device, indices.graphicsFamily.?, 0, &graphicsQueue);
-    c.vkGetDeviceQueue(global_device, indices.presentFamily.?, 0, &presentQueue);
-}
-
-fn pickPhysicalDevice(allocator: *Allocator) !void {
-    var deviceCount: u32 = 0;
-    try checkSuccess(c.vkEnumeratePhysicalDevices(instance, &deviceCount, null));
-
-    if (deviceCount == 0) {
-        return error.FailedToFindGPUsWithVulkanSupport;
-    }
-
-    const devices = try allocator.alloc(c.VkPhysicalDevice, deviceCount);
-    defer allocator.free(devices);
-    try checkSuccess(c.vkEnumeratePhysicalDevices(instance, &deviceCount, devices.ptr));
-
-    physicalDevice = for (devices) |device| {
-        if (try isDeviceSuitable(allocator, device)) {
-            break device;
-        }
-    } else return error.FailedToFindSuitableGPU;
-}
-
-fn findQueueFamilies(allocator: *Allocator, device: c.VkPhysicalDevice) !QueueFamilyIndices {
-    var indices = QueueFamilyIndices.init();
-
-    var queueFamilyCount: u32 = 0;
-    c.vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, null);
-
-    const queueFamilies = try allocator.alloc(c.VkQueueFamilyProperties, queueFamilyCount);
-    defer allocator.free(queueFamilies);
-    c.vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.ptr);
-
-    var i: u32 = 0;
-    for (queueFamilies) |queueFamily| {
-        if (queueFamily.queueCount > 0 and
-            queueFamily.queueFlags & c.VK_QUEUE_GRAPHICS_BIT != 0)
-        {
-            indices.graphicsFamily = i;
-        }
-
-        var presentSupport: c.VkBool32 = 0;
-        try checkSuccess(c.vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport));
-
-        if (queueFamily.queueCount > 0 and presentSupport != 0) {
-            indices.presentFamily = i;
-        }
-
-        if (indices.isComplete()) {
-            break;
-        }
-
-        i += 1;
-    }
-
-    return indices;
-}
-
-fn isDeviceSuitable(allocator: *Allocator, device: c.VkPhysicalDevice) !bool {
-    const indices = try findQueueFamilies(allocator, device);
-
-    const extensionsSupported = try checkDeviceExtensionSupport(allocator, device);
-
-    var swapChainAdequate = false;
-    if (extensionsSupported) {
-        var swapChainSupport = try querySwapChainSupport(allocator, device);
-        defer swapChainSupport.deinit();
-        swapChainAdequate = swapChainSupport.formats.items.len != 0 and swapChainSupport.presentModes.items.len != 0;
-    }
-
-    return indices.isComplete() and extensionsSupported and swapChainAdequate;
-}
-
-fn querySwapChainSupport(allocator: *Allocator, device: c.VkPhysicalDevice) !SwapChainSupportDetails {
-    var details = SwapChainSupportDetails.init(allocator);
-
-    try checkSuccess(c.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities));
-
-    var formatCount: u32 = undefined;
-    try checkSuccess(c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, null));
-
-    if (formatCount != 0) {
-        try details.formats.resize(formatCount);
-        try checkSuccess(c.vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.formats.items.ptr));
-    }
-
-    var presentModeCount: u32 = undefined;
-    try checkSuccess(c.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, null));
-
-    if (presentModeCount != 0) {
-        try details.presentModes.resize(presentModeCount);
-        try checkSuccess(c.vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, details.presentModes.items.ptr));
-    }
-
-    return details;
-}
-
-fn checkDeviceExtensionSupport(allocator: *Allocator, device: c.VkPhysicalDevice) !bool {
-    var extensionCount: u32 = undefined;
-    try checkSuccess(c.vkEnumerateDeviceExtensionProperties(device, null, &extensionCount, null));
-
-    const availableExtensions = try allocator.alloc(c.VkExtensionProperties, extensionCount);
-    defer allocator.free(availableExtensions);
-    try checkSuccess(c.vkEnumerateDeviceExtensionProperties(device, null, &extensionCount, availableExtensions.ptr));
-
-    const CStrHashMap = std.HashMap(
-        [*:0]const u8,
-        void,
-        hash_cstr,
-        eql_cstr,
-        std.hash_map.DefaultMaxLoadPercentage,
+    _ = xcb.create_window(
+        connection,
+        xcb.COPY_FROM_PARENT,
+        window,
+        screen.root,
+        0,
+        0,
+        @intCast(extent.width),
+        @intCast(extent.height),
+        0,
+        @intFromEnum(xcb.window_class_t.INPUT_OUTPUT),
+        screen.root_visual,
+        value_mask,
+        &value_list,
     );
-    var requiredExtensions = CStrHashMap.init(allocator);
-    defer requiredExtensions.deinit();
-    for (deviceExtensions) |device_ext| {
-        _ = try requiredExtensions.put(device_ext, {});
+
+    // Send notification when window is destroyed.
+    const atom_wm_protocols = try get_atom(connection, "WM_PROTOCOLS");
+    const atom_wm_delete_window = try get_atom(connection, "WM_DELETE_WINDOW");
+    _ = xcb.change_property(
+        connection,
+        .REPLACE,
+        window,
+        atom_wm_protocols,
+        .ATOM,
+        32,
+        1,
+        &atom_wm_delete_window,
+    );
+
+    const title = "Zig Vulkan Triangle";
+    _ = xcb.change_property(connection, .REPLACE, window, .WM_NAME, .STRING, 8, title.len, title);
+
+    // Set the WM_CLASS property to display title in dash tooltip and
+    // application menu on GNOME and other desktop environments
+    var wm_class_buf: [100]u8 = undefined;
+    const wm_class = std.fmt.bufPrint(&wm_class_buf, "windowName\x00{s}\x00", .{title}) catch unreachable;
+    _ = xcb.change_property(
+        connection,
+        .REPLACE,
+        window,
+        .WM_CLASS,
+        .STRING,
+        8,
+        @intCast(wm_class.len),
+        wm_class.ptr,
+    );
+    _ = xcb.map_window(connection, window);
+
+    const gc = try GraphicsContext.init(gpa, app_name, connection, window, enable_validation_layers);
+    defer gc.deinit();
+
+    std.log.debug("Using device: {s}", .{gc.deviceName()});
+
+    var swapchain = try Swapchain.init(&gc, gpa, extent);
+    defer swapchain.deinit();
+
+    const pipeline_layout = try gc.dev.createPipelineLayout(&.{
+        .flags = .{},
+        .set_layout_count = 0,
+        .p_set_layouts = undefined,
+        .push_constant_range_count = 0,
+        .p_push_constant_ranges = undefined,
+    }, null);
+    defer gc.dev.destroyPipelineLayout(pipeline_layout, null);
+
+    const render_pass = try createRenderPass(&gc, swapchain);
+    defer gc.dev.destroyRenderPass(render_pass, null);
+
+    const pipeline = try createPipeline(&gc, pipeline_layout, render_pass);
+    defer gc.dev.destroyPipeline(pipeline, null);
+
+    var framebuffers = try createFramebuffers(&gc, gpa, render_pass, swapchain);
+    defer destroyFramebuffers(&gc, gpa, framebuffers);
+
+    const pool = try gc.dev.createCommandPool(&.{
+        .queue_family_index = gc.graphics_queue.family,
+    }, null);
+    defer gc.dev.destroyCommandPool(pool, null);
+
+    const buffer = try gc.dev.createBuffer(&.{
+        .size = @sizeOf(@TypeOf(vertices)),
+        .usage = .{ .transfer_dst_bit = true, .vertex_buffer_bit = true },
+        .sharing_mode = .exclusive,
+    }, null);
+    defer gc.dev.destroyBuffer(buffer, null);
+    const mem_reqs = gc.dev.getBufferMemoryRequirements(buffer);
+    const memory = try gc.allocate(mem_reqs, .{ .device_local_bit = true });
+    defer gc.dev.freeMemory(memory, null);
+    try gc.dev.bindBufferMemory(buffer, memory, 0);
+
+    try uploadVertices(&gc, pool, buffer);
+
+    var cmdbufs = try createCommandBuffers(
+        &gc,
+        pool,
+        gpa,
+        buffer,
+        swapchain.extent,
+        render_pass,
+        pipeline,
+        framebuffers,
+    );
+    defer destroyCommandBuffers(&gc, pool, gpa, cmdbufs);
+
+    defer {
+        swapchain.waitForAllFences() catch {};
+        gc.dev.deviceWaitIdle() catch {};
     }
 
-    for (availableExtensions) |extension| {
-        _ = requiredExtensions.remove(@ptrCast([*:0]const u8, &extension.extensionName));
-    }
+    std.log.debug("main loop", .{});
 
-    return requiredExtensions.count() == 0;
-}
+    while (true) {
+        var extent_changed = false;
+        var opt_event = xcb.wait_for_event(connection);
+        while (opt_event) |event| : (opt_event = xcb.poll_for_event(connection)) {
+            defer std.c.free(event);
+            switch (event.response_type.op) {
+                .CLIENT_MESSAGE => blk: {
+                    const client_message: *xcb.client_message_event_t = @ptrCast(event);
+                    if (client_message.window != window) break :blk;
 
-fn createSurface(window: *c.GLFWwindow) !void {
-    if (c.glfwCreateWindowSurface(instance, window, null, &surface) != c.VK_SUCCESS) {
-        return error.FailedToCreateWindowSurface;
-    }
-}
-
-// TODO https://github.com/ziglang/zig/issues/661
-// Doesn't work on Windows until the above is fixed, because
-// this function needs to be stdcallcc on Windows.
-fn debugCallback(
-    flags: c.VkDebugReportFlagsEXT,
-    objType: c.VkDebugReportObjectTypeEXT,
-    obj: u64,
-    location: usize,
-    code: i32,
-    layerPrefix: [*:0]const u8,
-    msg: [*:0]const u8,
-    userData: ?*c_void,
-) callconv(.C) c.VkBool32 {
-    std.debug.warn("validation layer: {s}\n", .{msg});
-    return c.VK_FALSE;
-}
-
-fn setupDebugCallback() error{FailedToSetUpDebugCallback}!void {
-    if (!enableValidationLayers) return;
-
-    var createInfo = c.VkDebugReportCallbackCreateInfoEXT{
-        .sType = c.VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,
-        .flags = c.VK_DEBUG_REPORT_ERROR_BIT_EXT | c.VK_DEBUG_REPORT_WARNING_BIT_EXT,
-        .pfnCallback = debugCallback,
-        .pNext = null,
-        .pUserData = null,
-    };
-
-    if (CreateDebugReportCallbackEXT(&createInfo, null, &callback) != c.VK_SUCCESS) {
-        return error.FailedToSetUpDebugCallback;
-    }
-}
-
-fn DestroyDebugReportCallbackEXT(
-    pAllocator: ?*const c.VkAllocationCallbacks,
-) void {
-    const func = @ptrCast(c.PFN_vkDestroyDebugReportCallbackEXT, c.vkGetInstanceProcAddr(
-        instance,
-        "vkDestroyDebugReportCallbackEXT",
-    )) orelse unreachable;
-    func(instance, callback, pAllocator);
-}
-
-fn CreateDebugReportCallbackEXT(
-    pCreateInfo: *const c.VkDebugReportCallbackCreateInfoEXT,
-    pAllocator: ?*const c.VkAllocationCallbacks,
-    pCallback: *c.VkDebugReportCallbackEXT,
-) c.VkResult {
-    const func = @ptrCast(c.PFN_vkCreateDebugReportCallbackEXT, c.vkGetInstanceProcAddr(
-        instance,
-        "vkCreateDebugReportCallbackEXT",
-    )) orelse return c.VK_ERROR_EXTENSION_NOT_PRESENT;
-    return func(instance, pCreateInfo, pAllocator, pCallback);
-}
-
-fn createInstance(allocator: *Allocator) !void {
-    if (enableValidationLayers) {
-        if (!(try checkValidationLayerSupport(allocator))) {
-            return error.ValidationLayerRequestedButNotAvailable;
-        }
-    }
-
-    const appInfo = c.VkApplicationInfo{
-        .sType = c.VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        .pApplicationName = "Hello Triangle",
-        .applicationVersion = c.VK_MAKE_VERSION(1, 0, 0),
-        .pEngineName = "No Engine",
-        .engineVersion = c.VK_MAKE_VERSION(1, 0, 0),
-        .apiVersion = c.VK_API_VERSION_1_0,
-        .pNext = null,
-    };
-
-    const extensions = try getRequiredExtensions(allocator);
-    defer allocator.free(extensions);
-
-    const createInfo = c.VkInstanceCreateInfo{
-        .sType = c.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-        .pApplicationInfo = &appInfo,
-        .enabledExtensionCount = @intCast(u32, extensions.len),
-        .ppEnabledExtensionNames = extensions.ptr,
-        .enabledLayerCount = if (enableValidationLayers) @intCast(u32, validationLayers.len) else 0,
-        .ppEnabledLayerNames = if (enableValidationLayers) &validationLayers else null,
-        .pNext = null,
-        .flags = 0,
-    };
-
-    try checkSuccess(c.vkCreateInstance(&createInfo, null, &instance));
-}
-
-/// caller must free returned memory
-fn getRequiredExtensions(allocator: *Allocator) ![][*]const u8 {
-    var glfwExtensionCount: u32 = 0;
-    var glfwExtensions: [*]const [*]const u8 = c.glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
-    var extensions = std.ArrayList([*]const u8).init(allocator);
-    errdefer extensions.deinit();
-
-    try extensions.appendSlice(glfwExtensions[0..glfwExtensionCount]);
-
-    if (enableValidationLayers) {
-        try extensions.append(c.VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
-    }
-
-    return extensions.toOwnedSlice();
-}
-
-fn checkSuccess(result: c.VkResult) !void {
-    switch (result) {
-        c.VK_SUCCESS => {},
-        else => return error.Unexpected,
-    }
-}
-
-fn checkValidationLayerSupport(allocator: *Allocator) !bool {
-    var layerCount: u32 = undefined;
-
-    try checkSuccess(c.vkEnumerateInstanceLayerProperties(&layerCount, null));
-
-    const availableLayers = try allocator.alloc(c.VkLayerProperties, layerCount);
-    defer allocator.free(availableLayers);
-
-    try checkSuccess(c.vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.ptr));
-
-    for (validationLayers) |layerName| {
-        var layerFound = false;
-
-        for (availableLayers) |layerProperties| {
-            if (std.cstr.cmp(layerName, @ptrCast([*:0]const u8, &layerProperties.layerName)) == 0) {
-                layerFound = true;
-                break;
+                    if (client_message.type == atom_wm_protocols) {
+                        const msg_atom: xcb.atom_t = @enumFromInt(client_message.data.data32[0]);
+                        if (msg_atom == atom_wm_delete_window) return std.process.cleanExit();
+                    } else if (client_message.type == .NOTICE) {
+                        // We repaint every frame regardless.
+                    }
+                },
+                .CONFIGURE_NOTIFY => {
+                    const configure: *xcb.configure_notify_event_t = @ptrCast(event);
+                    if (extent.width != configure.width or
+                        extent.height != configure.height)
+                    {
+                        extent.width = configure.width;
+                        extent.height = configure.height;
+                        extent_changed = true;
+                    }
+                },
+                .EXPOSE => {
+                    // We paint everything every frame, so this message is pointless.
+                },
+                .KEY_PRESS => {
+                    const key_press: *xcb.key_press_event_t = @ptrCast(event);
+                    if (key_press.detail == 9) return std.process.cleanExit();
+                },
+                .KEY_RELEASE => {
+                    // key up
+                },
+                .MOTION_NOTIFY => {
+                    // mouse movement
+                },
+                .BUTTON_PRESS => {
+                    // mouse down
+                },
+                .BUTTON_RELEASE => {
+                    // mouse up
+                },
+                else => |t| {
+                    std.log.debug("unhandled xcb message: {s}", .{@tagName(t)});
+                },
             }
         }
 
-        if (!layerFound) {
-            return false;
+        const cmdbuf = cmdbufs[swapchain.image_index];
+
+        const state = swapchain.present(cmdbuf) catch |err| switch (err) {
+            error.OutOfDateKHR => Swapchain.PresentState.suboptimal,
+            else => |narrow| return narrow,
+        };
+
+        if (state == .suboptimal or extent_changed) {
+            try swapchain.recreate(extent);
+
+            destroyFramebuffers(&gc, gpa, framebuffers);
+            framebuffers = try createFramebuffers(&gc, gpa, render_pass, swapchain);
+
+            destroyCommandBuffers(&gc, pool, gpa, cmdbufs);
+            cmdbufs = try createCommandBuffers(
+                &gc,
+                pool,
+                gpa,
+                buffer,
+                swapchain.extent,
+                render_pass,
+                pipeline,
+                framebuffers,
+            );
         }
     }
-
-    return true;
 }
 
-fn drawFrame() !void {
-    try checkSuccess(c.vkWaitForFences(global_device, 1, @as(*[1]c.VkFence, &inFlightFences[currentFrame]), c.VK_TRUE, maxInt(u64)));
-    try checkSuccess(c.vkResetFences(global_device, 1, @as(*[1]c.VkFence, &inFlightFences[currentFrame])));
+fn uploadVertices(gc: *const GraphicsContext, pool: vk.CommandPool, buffer: vk.Buffer) !void {
+    const staging_buffer = try gc.dev.createBuffer(&.{
+        .size = @sizeOf(@TypeOf(vertices)),
+        .usage = .{ .transfer_src_bit = true },
+        .sharing_mode = .exclusive,
+    }, null);
+    defer gc.dev.destroyBuffer(staging_buffer, null);
+    const mem_reqs = gc.dev.getBufferMemoryRequirements(staging_buffer);
+    const staging_memory = try gc.allocate(mem_reqs, .{ .host_visible_bit = true, .host_coherent_bit = true });
+    defer gc.dev.freeMemory(staging_memory, null);
+    try gc.dev.bindBufferMemory(staging_buffer, staging_memory, 0);
 
-    var imageIndex: u32 = undefined;
-    try checkSuccess(c.vkAcquireNextImageKHR(global_device, swapChain, maxInt(u64), imageAvailableSemaphores[currentFrame], null, &imageIndex));
+    {
+        const data = try gc.dev.mapMemory(staging_memory, 0, vk.WHOLE_SIZE, .{});
+        defer gc.dev.unmapMemory(staging_memory);
 
-    var waitSemaphores = [_]c.VkSemaphore{imageAvailableSemaphores[currentFrame]};
-    var waitStages = [_]c.VkPipelineStageFlags{c.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+        const gpu_vertices: [*]Vertex = @ptrCast(@alignCast(data));
+        @memcpy(gpu_vertices, vertices[0..]);
+    }
 
-    const signalSemaphores = [_]c.VkSemaphore{renderFinishedSemaphores[currentFrame]};
+    try copyBuffer(gc, pool, buffer, staging_buffer, @sizeOf(@TypeOf(vertices)));
+}
 
-    var submitInfo = [_]c.VkSubmitInfo{c.VkSubmitInfo{
-        .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &waitSemaphores,
-        .pWaitDstStageMask = &waitStages,
-        .commandBufferCount = 1,
-        .pCommandBuffers = commandBuffers.ptr + imageIndex,
-        .signalSemaphoreCount = 1,
-        .pSignalSemaphores = &signalSemaphores,
+fn copyBuffer(gc: *const GraphicsContext, pool: vk.CommandPool, dst: vk.Buffer, src: vk.Buffer, size: vk.DeviceSize) !void {
+    var cmdbuf_handle: vk.CommandBuffer = undefined;
+    try gc.dev.allocateCommandBuffers(&.{
+        .command_pool = pool,
+        .level = .primary,
+        .command_buffer_count = 1,
+    }, @ptrCast(&cmdbuf_handle));
+    defer gc.dev.freeCommandBuffers(pool, 1, @ptrCast(&cmdbuf_handle));
 
-        .pNext = null,
-    }};
+    const cmdbuf = GraphicsContext.CommandBuffer.init(cmdbuf_handle, gc.dev.wrapper);
 
-    try checkSuccess(c.vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]));
+    try cmdbuf.beginCommandBuffer(&.{
+        .flags = .{ .one_time_submit_bit = true },
+    });
 
-    const swapChains = [_]c.VkSwapchainKHR{swapChain};
-    const presentInfo = c.VkPresentInfoKHR{
-        .sType = c.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+    const region = vk.BufferCopy{
+        .src_offset = 0,
+        .dst_offset = 0,
+        .size = size,
+    };
+    cmdbuf.copyBuffer(src, dst, 1, @ptrCast(&region));
 
-        .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &signalSemaphores,
+    try cmdbuf.endCommandBuffer();
 
-        .swapchainCount = 1,
-        .pSwapchains = &swapChains,
+    const si = vk.SubmitInfo{
+        .command_buffer_count = 1,
+        .p_command_buffers = (&cmdbuf.handle)[0..1],
+        .p_wait_dst_stage_mask = undefined,
+    };
+    try gc.dev.queueSubmit(gc.graphics_queue.handle, 1, @ptrCast(&si), .null_handle);
+    try gc.dev.queueWaitIdle(gc.graphics_queue.handle);
+}
 
-        .pImageIndices = @ptrCast(*[1]u32, &imageIndex),
+fn createCommandBuffers(
+    gc: *const GraphicsContext,
+    pool: vk.CommandPool,
+    gpa: Allocator,
+    buffer: vk.Buffer,
+    extent: vk.Extent2D,
+    render_pass: vk.RenderPass,
+    pipeline: vk.Pipeline,
+    framebuffers: []vk.Framebuffer,
+) ![]vk.CommandBuffer {
+    const cmdbufs = try gpa.alloc(vk.CommandBuffer, framebuffers.len);
+    errdefer gpa.free(cmdbufs);
 
-        .pNext = null,
-        .pResults = null,
+    try gc.dev.allocateCommandBuffers(&.{
+        .command_pool = pool,
+        .level = .primary,
+        .command_buffer_count = @intCast(cmdbufs.len),
+    }, cmdbufs.ptr);
+    errdefer gc.dev.freeCommandBuffers(pool, @intCast(cmdbufs.len), cmdbufs.ptr);
+
+    const clear: vk.ClearValue = .{
+        .color = .{ .float_32 = .{ 0, 0, 0, 1 } },
     };
 
-    try checkSuccess(c.vkQueuePresentKHR(presentQueue, &presentInfo));
+    const viewport: vk.Viewport = .{
+        .x = 0,
+        .y = 0,
+        .width = @floatFromInt(extent.width),
+        .height = @floatFromInt(extent.height),
+        .min_depth = 0,
+        .max_depth = 1,
+    };
 
-    currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-}
+    const scissor: vk.Rect2D = .{
+        .offset = .{ .x = 0, .y = 0 },
+        .extent = extent,
+    };
 
-fn hash_cstr(a: [*:0]const u8) u64 {
-    // FNV 32-bit hash
-    var h: u32 = 2166136261;
-    var i: usize = 0;
-    while (a[i] != 0) : (i += 1) {
-        h ^= a[i];
-        h *%= 16777619;
+    for (cmdbufs, framebuffers) |cmdbuf, framebuffer| {
+        try gc.dev.beginCommandBuffer(cmdbuf, &.{});
+
+        gc.dev.cmdSetViewport(cmdbuf, 0, 1, @ptrCast(&viewport));
+        gc.dev.cmdSetScissor(cmdbuf, 0, 1, @ptrCast(&scissor));
+
+        const render_area: vk.Rect2D = .{
+            .offset = .{ .x = 0, .y = 0 },
+            .extent = extent,
+        };
+
+        gc.dev.cmdBeginRenderPass(cmdbuf, &.{
+            .render_pass = render_pass,
+            .framebuffer = framebuffer,
+            .render_area = render_area,
+            .clear_value_count = 1,
+            .p_clear_values = @ptrCast(&clear),
+        }, .@"inline");
+
+        gc.dev.cmdBindPipeline(cmdbuf, .graphics, pipeline);
+        const offset = [_]vk.DeviceSize{0};
+        gc.dev.cmdBindVertexBuffers(cmdbuf, 0, 1, @ptrCast(&buffer), &offset);
+        gc.dev.cmdDraw(cmdbuf, vertices.len, 1, 0, 0);
+
+        gc.dev.cmdEndRenderPass(cmdbuf);
+        try gc.dev.endCommandBuffer(cmdbuf);
     }
-    return h;
+
+    return cmdbufs;
 }
 
-fn eql_cstr(a: [*:0]const u8, b: [*:0]const u8) bool {
-    return std.cstr.cmp(a, b) == 0;
+fn destroyCommandBuffers(gc: *const GraphicsContext, pool: vk.CommandPool, gpa: Allocator, cmdbufs: []vk.CommandBuffer) void {
+    gc.dev.freeCommandBuffers(pool, @truncate(cmdbufs.len), cmdbufs.ptr);
+    gpa.free(cmdbufs);
+}
+
+fn createFramebuffers(gc: *const GraphicsContext, gpa: Allocator, render_pass: vk.RenderPass, swapchain: Swapchain) ![]vk.Framebuffer {
+    const framebuffers = try gpa.alloc(vk.Framebuffer, swapchain.swap_images.len);
+    errdefer gpa.free(framebuffers);
+
+    var i: usize = 0;
+    errdefer for (framebuffers[0..i]) |fb| gc.dev.destroyFramebuffer(fb, null);
+
+    for (framebuffers) |*fb| {
+        fb.* = try gc.dev.createFramebuffer(&.{
+            .render_pass = render_pass,
+            .attachment_count = 1,
+            .p_attachments = @ptrCast(&swapchain.swap_images[i].view),
+            .width = swapchain.extent.width,
+            .height = swapchain.extent.height,
+            .layers = 1,
+        }, null);
+        i += 1;
+    }
+
+    return framebuffers;
+}
+
+fn destroyFramebuffers(gc: *const GraphicsContext, gpa: Allocator, framebuffers: []const vk.Framebuffer) void {
+    for (framebuffers) |fb| gc.dev.destroyFramebuffer(fb, null);
+    gpa.free(framebuffers);
+}
+
+fn createRenderPass(gc: *const GraphicsContext, swapchain: Swapchain) !vk.RenderPass {
+    const color_attachment: vk.AttachmentDescription = .{
+        .format = swapchain.surface_format.format,
+        .samples = .{ .@"1_bit" = true },
+        .load_op = .clear,
+        .store_op = .store,
+        .stencil_load_op = .dont_care,
+        .stencil_store_op = .dont_care,
+        .initial_layout = .undefined,
+        .final_layout = .present_src_khr,
+    };
+
+    const color_attachment_ref: vk.AttachmentReference = .{
+        .attachment = 0,
+        .layout = .color_attachment_optimal,
+    };
+
+    const subpass: vk.SubpassDescription = .{
+        .pipeline_bind_point = .graphics,
+        .color_attachment_count = 1,
+        .p_color_attachments = @ptrCast(&color_attachment_ref),
+    };
+
+    return try gc.dev.createRenderPass(&.{
+        .attachment_count = 1,
+        .p_attachments = @ptrCast(&color_attachment),
+        .subpass_count = 1,
+        .p_subpasses = @ptrCast(&subpass),
+    }, null);
+}
+
+fn createPipeline(
+    gc: *const GraphicsContext,
+    layout: vk.PipelineLayout,
+    render_pass: vk.RenderPass,
+) !vk.Pipeline {
+    const vert = try gc.dev.createShaderModule(&.{
+        .code_size = shader_triangle_vert.len,
+        .p_code = @alignCast(@ptrCast(shader_triangle_vert)),
+    }, null);
+    defer gc.dev.destroyShaderModule(vert, null);
+
+    const frag = try gc.dev.createShaderModule(&.{
+        .code_size = shader_triangle_frag.len,
+        .p_code = @alignCast(@ptrCast(shader_triangle_frag)),
+    }, null);
+    defer gc.dev.destroyShaderModule(frag, null);
+
+    const pssci = [_]vk.PipelineShaderStageCreateInfo{
+        .{
+            .stage = .{ .vertex_bit = true },
+            .module = vert,
+            .p_name = "main",
+        },
+        .{
+            .stage = .{ .fragment_bit = true },
+            .module = frag,
+            .p_name = "main",
+        },
+    };
+
+    const pvisci = vk.PipelineVertexInputStateCreateInfo{
+        .vertex_binding_description_count = 1,
+        .p_vertex_binding_descriptions = @ptrCast(&Vertex.binding_description),
+        .vertex_attribute_description_count = Vertex.attribute_description.len,
+        .p_vertex_attribute_descriptions = &Vertex.attribute_description,
+    };
+
+    const piasci = vk.PipelineInputAssemblyStateCreateInfo{
+        .topology = .triangle_list,
+        .primitive_restart_enable = vk.FALSE,
+    };
+
+    const pvsci = vk.PipelineViewportStateCreateInfo{
+        .viewport_count = 1,
+        .p_viewports = undefined, // set in createCommandBuffers with cmdSetViewport
+        .scissor_count = 1,
+        .p_scissors = undefined, // set in createCommandBuffers with cmdSetScissor
+    };
+
+    const prsci = vk.PipelineRasterizationStateCreateInfo{
+        .depth_clamp_enable = vk.FALSE,
+        .rasterizer_discard_enable = vk.FALSE,
+        .polygon_mode = .fill,
+        .cull_mode = .{ .back_bit = true },
+        .front_face = .clockwise,
+        .depth_bias_enable = vk.FALSE,
+        .depth_bias_constant_factor = 0,
+        .depth_bias_clamp = 0,
+        .depth_bias_slope_factor = 0,
+        .line_width = 1,
+    };
+
+    const pmsci = vk.PipelineMultisampleStateCreateInfo{
+        .rasterization_samples = .{ .@"1_bit" = true },
+        .sample_shading_enable = vk.FALSE,
+        .min_sample_shading = 1,
+        .alpha_to_coverage_enable = vk.FALSE,
+        .alpha_to_one_enable = vk.FALSE,
+    };
+
+    const pcbas = vk.PipelineColorBlendAttachmentState{
+        .blend_enable = vk.FALSE,
+        .src_color_blend_factor = .one,
+        .dst_color_blend_factor = .zero,
+        .color_blend_op = .add,
+        .src_alpha_blend_factor = .one,
+        .dst_alpha_blend_factor = .zero,
+        .alpha_blend_op = .add,
+        .color_write_mask = .{ .r_bit = true, .g_bit = true, .b_bit = true, .a_bit = true },
+    };
+
+    const pcbsci = vk.PipelineColorBlendStateCreateInfo{
+        .logic_op_enable = vk.FALSE,
+        .logic_op = .copy,
+        .attachment_count = 1,
+        .p_attachments = @ptrCast(&pcbas),
+        .blend_constants = [_]f32{ 0, 0, 0, 0 },
+    };
+
+    const dynstate = [_]vk.DynamicState{ .viewport, .scissor };
+    const pdsci = vk.PipelineDynamicStateCreateInfo{
+        .flags = .{},
+        .dynamic_state_count = dynstate.len,
+        .p_dynamic_states = &dynstate,
+    };
+
+    const gpci = vk.GraphicsPipelineCreateInfo{
+        .flags = .{},
+        .stage_count = 2,
+        .p_stages = &pssci,
+        .p_vertex_input_state = &pvisci,
+        .p_input_assembly_state = &piasci,
+        .p_tessellation_state = null,
+        .p_viewport_state = &pvsci,
+        .p_rasterization_state = &prsci,
+        .p_multisample_state = &pmsci,
+        .p_depth_stencil_state = null,
+        .p_color_blend_state = &pcbsci,
+        .p_dynamic_state = &pdsci,
+        .layout = layout,
+        .render_pass = render_pass,
+        .subpass = 0,
+        .base_pipeline_handle = .null_handle,
+        .base_pipeline_index = -1,
+    };
+
+    var pipeline: vk.Pipeline = undefined;
+    _ = try gc.dev.createGraphicsPipelines(
+        .null_handle,
+        1,
+        @ptrCast(&gpci),
+        null,
+        @ptrCast(&pipeline),
+    );
+    return pipeline;
+}
+
+fn get_atom(conn: *xcb.connection_t, name: [:0]const u8) error{OutOfMemory}!xcb.atom_t {
+    const cookie = xcb.intern_atom(conn, 0, @intCast(name.len), name.ptr);
+    if (xcb.intern_atom_reply(conn, cookie, null)) |r| {
+        defer std.c.free(r);
+        return r.atom;
+    }
+    return error.OutOfMemory;
 }

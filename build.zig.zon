@@ -1,0 +1,28 @@
+.{
+    .name = "vulkan-triangle-example",
+    .version = "0.0.0",
+    .minimum_zig_version = "0.14.0-dev.1359+e9a00ba7f",
+
+    .dependencies = .{
+        .vulkan = .{
+            .url = "git+https://github.com/andrewrk/vulkan-zig.git#b6e589d62bc1d9070c47d73ce942168fb92624c8",
+            .hash = "12201e484e173e70634e664864763223427703e677f28c63ebec9332513c8ca5121c",
+        },
+        .vulkan_headers = .{
+            .url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/v1.3.283.tar.gz",
+            .hash = "1220a7e73d72a0d56bc2a65f9d8999a7c019e42260a0744c408d1cded111bc205e10",
+        },
+        .shader_compiler = .{
+            .url = "git+https://github.com/andrewrk/shader_compiler.git#89550bb2cbe85276bd1fd89d020f3bbd686937c3",
+            .hash = "12207b775b98ac87f583d5ca95386537432c22f4bc83bc0c7fd9d6cbfdf265cc0444",
+        },
+    },
+
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "LICENSE",
+        "README.md",
+    },
+}
