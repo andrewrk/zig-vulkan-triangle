@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) void {
 
     const registry = b.dependency("vulkan_headers", .{}).path("registry/vk.xml");
     const shader_compiler = b.dependency("shader_compiler", .{
-        .target = b.host,
+        .target = target,
         .optimize = .ReleaseFast,
     }).artifact("shader_compiler");
 
@@ -17,7 +17,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
-    exe.linkSystemLibrary("vulkan");
+    exe.linkSystemLibrary(if (target.result.os.tag == .windows) "vulkan-1" else "vulkan");
     exe.linkSystemLibrary("xcb");
     b.installArtifact(exe);
 
