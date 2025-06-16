@@ -5,36 +5,13 @@ const GraphicsContext = @This();
 
 const required_device_extensions = [_][*:0]const u8{vk.extensions.khr_swapchain.name};
 
-/// To construct base, instance and device wrappers for vulkan-zig, you need to pass a list of 'apis' to it.
-const apis: []const vk.ApiInfo = &.{
-    // You can either add invidiual functions by manually creating an 'api'
-    .{
-        .base_commands = .{
-            .createInstance = true,
-            .enumerateInstanceLayerProperties = true,
-        },
-        .instance_commands = .{
-            .createDevice = true,
-            .createXcbSurfaceKHR = true,
-        },
-    },
-    // Or you can add entire feature sets or extensions
-    vk.features.version_1_0,
-    vk.extensions.khr_surface,
-    vk.extensions.khr_swapchain,
-    vk.extensions.ext_debug_utils,
-};
+const BaseDispatch = vk.BaseWrapper;
+const InstanceDispatch = vk.InstanceWrapper;
+const DeviceDispatch = vk.DeviceWrapper;
+const Instance = vk.InstanceProxy;
+const Device = vk.DeviceProxy;
 
-/// Next, pass the `apis` to the wrappers to create dispatch tables.
-const BaseDispatch = vk.BaseWrapper(apis);
-const InstanceDispatch = vk.InstanceWrapper(apis);
-const DeviceDispatch = vk.DeviceWrapper(apis);
-
-// Also create some proxying wrappers, which also have the respective handles
-const Instance = vk.InstanceProxy(apis);
-const Device = vk.DeviceProxy(apis);
-
-pub const CommandBuffer = vk.CommandBufferProxy(apis);
+pub const CommandBuffer = vk.CommandBufferProxy;
 
 allocator: Allocator,
 
@@ -66,14 +43,14 @@ pub fn init(
 ) !GraphicsContext {
     var self: GraphicsContext = undefined;
     self.allocator = allocator;
-    self.vkb = try BaseDispatch.load(vkGetInstanceProcAddr);
+    self.vkb = BaseDispatch.load(vkGetInstanceProcAddr);
 
     const app_info: vk.ApplicationInfo = .{
         .p_application_name = app_name,
-        .application_version = vk.makeApiVersion(0, 0, 0, 0),
+        .application_version = @bitCast(vk.makeApiVersion(0, 0, 0, 0)),
         .p_engine_name = app_name,
-        .engine_version = vk.makeApiVersion(0, 0, 0, 0),
-        .api_version = vk.API_VERSION_1_2,
+        .engine_version = @bitCast(vk.makeApiVersion(0, 0, 0, 0)),
+        .api_version = @bitCast(vk.API_VERSION_1_2),
     };
 
     var extension_names_buffer: [3][*:0]const u8 = undefined;
@@ -101,7 +78,7 @@ pub fn init(
 
     const vki = try allocator.create(InstanceDispatch);
     errdefer allocator.destroy(vki);
-    vki.* = try InstanceDispatch.load(instance, self.vkb.dispatch.vkGetInstanceProcAddr);
+    vki.* = InstanceDispatch.load(instance, self.vkb.dispatch.vkGetInstanceProcAddr.?);
     self.instance = Instance.init(instance, vki);
     errdefer self.instance.destroyInstance(null);
 
@@ -132,7 +109,7 @@ pub fn init(
 
     const vkd = try allocator.create(DeviceDispatch);
     errdefer allocator.destroy(vkd);
-    vkd.* = try DeviceDispatch.load(dev, self.instance.wrapper.dispatch.vkGetDeviceProcAddr);
+    vkd.* = DeviceDispatch.load(dev, self.instance.wrapper.dispatch.vkGetDeviceProcAddr.?);
     self.dev = Device.init(dev, vkd);
     errdefer self.dev.destroyDevice(null);
 

@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) void {
 
     const registry = b.dependency("vulkan_headers", .{}).path("registry/vk.xml");
     const shader_compiler = b.dependency("shader_compiler", .{
-        .target = b.host,
+        .target = target,
         .optimize = .ReleaseFast,
     }).artifact("shader_compiler");
 
