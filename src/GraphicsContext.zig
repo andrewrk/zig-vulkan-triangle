@@ -31,7 +31,6 @@ debug_messenger: vk.DebugUtilsMessengerEXT,
 
 const vkGetInstanceProcAddr = @extern(vk.PfnGetInstanceProcAddr, .{
     .name = "vkGetInstanceProcAddr",
-    .library_name = "vulkan",
 });
 
 pub fn init(
