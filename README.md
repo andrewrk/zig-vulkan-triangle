@@ -1,8 +1,7 @@
 # zig-vulkan-triangle
 
-Example of using [vulkan-zig](https://github.com/Snektron/vulkan-zig) and
-[shader_compiler](https://github.com/Games-by-Mason/shader_compiler) along with
-libxcb to open a window and draw a triangle.
+Minimal example of using [vulkan-zig](https://github.com/Snektron/vulkan-zig)
+along with libxcb to open a window and draw a triangle.
 
 ![](https://i.imgur.com/pHEHvMU.png)
 
@@ -14,14 +13,18 @@ zig build run
 
 ## System Configuration
 
-On NixOS, I had to add these to my shell:
+On NixOS, this `nix-shell` works for me:
 
-```
-buildInputs = [
-    vulkan-loader
-    vulkan-validation-layers
-    xorg.libxcb
-];
+```nix
+{ pkgs ? import <nixpkgs> { } }:
 
-VK_LAYER_PATH="${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d";
+pkgs.mkShell {
+  hardeningDisable = [ "all" ];
+  buildInputs = [
+    pkgs.vulkan-loader
+    pkgs.vulkan-validation-layers
+    pkgs.xorg.libxcb
+  ];
+  VK_LAYER_PATH="${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d";
+}
 ```
