@@ -2,10 +2,10 @@ const builtin = @import("builtin");
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const shader_triangle_vert = @embedFile("shaders.triangle.vert");
-const shader_triangle_frag = @embedFile("shaders.triangle.frag");
+const shader_vert = @embedFile("shader.vert");
+const shader_frag = @embedFile("shader.frag");
 const xcb = @import("xcb.zig");
-const GraphicsContext = @import("GraphicsContext.zig");
+const Graphics = @import("Graphics.zig");
 const Swapchain = @import("Swapchain.zig");
 
 const vk = @import("vulkan");
@@ -49,10 +49,9 @@ const vertices = [_]Vertex{
     .{ .pos = .{ -0.5, 0.5 }, .color = .{ 0, 0, 1 } },
 };
 
-pub fn main() !void {
-    var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = general_purpose_allocator.deinit();
-    const gpa = general_purpose_allocator.allocator();
+pub fn main(init: std.process.Init) !void {
+    const gpa = init.gpa;
+    const io = init.io;
 
     var extent: vk.Extent2D = .{ .width = 800, .height = 600 };
 
@@ -133,7 +132,7 @@ pub fn main() !void {
     );
     _ = xcb.map_window(connection, window);
 
-    const gc = try GraphicsContext.init(gpa, app_name, connection, window, enable_validation_layers);
+    const gc = try Graphics.init(gpa, app_name, connection, window, enable_validation_layers);
     defer gc.deinit();
 
     std.log.debug("Using device: {s}", .{gc.deviceName()});
@@ -208,7 +207,7 @@ pub fn main() !void {
 
                     if (client_message.type == atom_wm_protocols) {
                         const msg_atom: xcb.atom_t = @enumFromInt(client_message.data.data32[0]);
-                        if (msg_atom == atom_wm_delete_window) return std.process.cleanExit();
+                        if (msg_atom == atom_wm_delete_window) return std.process.cleanExit(io);
                     } else if (client_message.type == .NOTICE) {
                         // We repaint every frame regardless.
                     }
@@ -228,7 +227,7 @@ pub fn main() !void {
                 },
                 .KEY_PRESS => {
                     const key_press: *xcb.key_press_event_t = @ptrCast(event);
-                    if (key_press.detail == 9) return std.process.cleanExit();
+                    if (key_press.detail == 9) return std.process.cleanExit(io);
                 },
                 .KEY_RELEASE => {
                     // key up
@@ -276,7 +275,7 @@ pub fn main() !void {
     }
 }
 
-fn uploadVertices(gc: *const GraphicsContext, pool: vk.CommandPool, buffer: vk.Buffer) !void {
+fn uploadVertices(gc: *const Graphics, pool: vk.CommandPool, buffer: vk.Buffer) !void {
     const staging_buffer = try gc.dev.createBuffer(&.{
         .size = @sizeOf(@TypeOf(vertices)),
         .usage = .{ .transfer_src_bit = true },
@@ -299,16 +298,16 @@ fn uploadVertices(gc: *const GraphicsContext, pool: vk.CommandPool, buffer: vk.B
     try copyBuffer(gc, pool, buffer, staging_buffer, @sizeOf(@TypeOf(vertices)));
 }
 
-fn copyBuffer(gc: *const GraphicsContext, pool: vk.CommandPool, dst: vk.Buffer, src: vk.Buffer, size: vk.DeviceSize) !void {
+fn copyBuffer(gc: *const Graphics, pool: vk.CommandPool, dst: vk.Buffer, src: vk.Buffer, size: vk.DeviceSize) !void {
     var cmdbuf_handle: vk.CommandBuffer = undefined;
     try gc.dev.allocateCommandBuffers(&.{
         .command_pool = pool,
         .level = .primary,
         .command_buffer_count = 1,
-    }, @ptrCast(&cmdbuf_handle));
-    defer gc.dev.freeCommandBuffers(pool, 1, @ptrCast(&cmdbuf_handle));
+    }, (&cmdbuf_handle)[0..1]);
+    defer gc.dev.freeCommandBuffers(pool, (&cmdbuf_handle)[0..1]);
 
-    const cmdbuf = GraphicsContext.CommandBuffer.init(cmdbuf_handle, gc.dev.wrapper);
+    const cmdbuf = Graphics.CommandBuffer.init(cmdbuf_handle, gc.dev.wrapper);
 
     try cmdbuf.beginCommandBuffer(&.{
         .flags = .{ .one_time_submit_bit = true },
@@ -319,7 +318,7 @@ fn copyBuffer(gc: *const GraphicsContext, pool: vk.CommandPool, dst: vk.Buffer, 
         .dst_offset = 0,
         .size = size,
     };
-    cmdbuf.copyBuffer(src, dst, 1, @ptrCast(&region));
+    cmdbuf.copyBuffer(src, dst, (&region)[0..1]);
 
     try cmdbuf.endCommandBuffer();
 
@@ -328,12 +327,12 @@ fn copyBuffer(gc: *const GraphicsContext, pool: vk.CommandPool, dst: vk.Buffer, 
         .p_command_buffers = (&cmdbuf.handle)[0..1],
         .p_wait_dst_stage_mask = undefined,
     };
-    try gc.dev.queueSubmit(gc.graphics_queue.handle, 1, @ptrCast(&si), .null_handle);
+    try gc.dev.queueSubmit(gc.graphics_queue.handle, (&si)[0..1], .null_handle);
     try gc.dev.queueWaitIdle(gc.graphics_queue.handle);
 }
 
 fn createCommandBuffers(
-    gc: *const GraphicsContext,
+    gc: *const Graphics,
     pool: vk.CommandPool,
     gpa: Allocator,
     buffer: vk.Buffer,
@@ -350,7 +349,7 @@ fn createCommandBuffers(
         .level = .primary,
         .command_buffer_count = @intCast(cmdbufs.len),
     }, cmdbufs.ptr);
-    errdefer gc.dev.freeCommandBuffers(pool, @intCast(cmdbufs.len), cmdbufs.ptr);
+    errdefer gc.dev.freeCommandBuffers(pool, cmdbufs);
 
     const clear: vk.ClearValue = .{
         .color = .{ .float_32 = .{ 0, 0, 0, 1 } },
@@ -373,8 +372,8 @@ fn createCommandBuffers(
     for (cmdbufs, framebuffers) |cmdbuf, framebuffer| {
         try gc.dev.beginCommandBuffer(cmdbuf, &.{});
 
-        gc.dev.cmdSetViewport(cmdbuf, 0, 1, @ptrCast(&viewport));
-        gc.dev.cmdSetScissor(cmdbuf, 0, 1, @ptrCast(&scissor));
+        gc.dev.cmdSetViewport(cmdbuf, 0, (&viewport)[0..1]);
+        gc.dev.cmdSetScissor(cmdbuf, 0, (&scissor)[0..1]);
 
         const render_area: vk.Rect2D = .{
             .offset = .{ .x = 0, .y = 0 },
@@ -391,7 +390,7 @@ fn createCommandBuffers(
 
         gc.dev.cmdBindPipeline(cmdbuf, .graphics, pipeline);
         const offset = [_]vk.DeviceSize{0};
-        gc.dev.cmdBindVertexBuffers(cmdbuf, 0, 1, @ptrCast(&buffer), &offset);
+        gc.dev.cmdBindVertexBuffers(cmdbuf, 0, (&buffer)[0..1], &offset);
         gc.dev.cmdDraw(cmdbuf, vertices.len, 1, 0, 0);
 
         gc.dev.cmdEndRenderPass(cmdbuf);
@@ -401,12 +400,12 @@ fn createCommandBuffers(
     return cmdbufs;
 }
 
-fn destroyCommandBuffers(gc: *const GraphicsContext, pool: vk.CommandPool, gpa: Allocator, cmdbufs: []vk.CommandBuffer) void {
-    gc.dev.freeCommandBuffers(pool, @truncate(cmdbufs.len), cmdbufs.ptr);
+fn destroyCommandBuffers(gc: *const Graphics, pool: vk.CommandPool, gpa: Allocator, cmdbufs: []vk.CommandBuffer) void {
+    gc.dev.freeCommandBuffers(pool, cmdbufs);
     gpa.free(cmdbufs);
 }
 
-fn createFramebuffers(gc: *const GraphicsContext, gpa: Allocator, render_pass: vk.RenderPass, swapchain: Swapchain) ![]vk.Framebuffer {
+fn createFramebuffers(gc: *const Graphics, gpa: Allocator, render_pass: vk.RenderPass, swapchain: Swapchain) ![]vk.Framebuffer {
     const framebuffers = try gpa.alloc(vk.Framebuffer, swapchain.swap_images.len);
     errdefer gpa.free(framebuffers);
 
@@ -428,12 +427,12 @@ fn createFramebuffers(gc: *const GraphicsContext, gpa: Allocator, render_pass: v
     return framebuffers;
 }
 
-fn destroyFramebuffers(gc: *const GraphicsContext, gpa: Allocator, framebuffers: []const vk.Framebuffer) void {
+fn destroyFramebuffers(gc: *const Graphics, gpa: Allocator, framebuffers: []const vk.Framebuffer) void {
     for (framebuffers) |fb| gc.dev.destroyFramebuffer(fb, null);
     gpa.free(framebuffers);
 }
 
-fn createRenderPass(gc: *const GraphicsContext, swapchain: Swapchain) !vk.RenderPass {
+fn createRenderPass(gc: *const Graphics, swapchain: Swapchain) !vk.RenderPass {
     const color_attachment: vk.AttachmentDescription = .{
         .format = swapchain.surface_format.format,
         .samples = .{ .@"1_bit" = true },
@@ -465,19 +464,19 @@ fn createRenderPass(gc: *const GraphicsContext, swapchain: Swapchain) !vk.Render
 }
 
 fn createPipeline(
-    gc: *const GraphicsContext,
+    gc: *const Graphics,
     layout: vk.PipelineLayout,
     render_pass: vk.RenderPass,
 ) !vk.Pipeline {
     const vert = try gc.dev.createShaderModule(&.{
-        .code_size = shader_triangle_vert.len,
-        .p_code = @alignCast(@ptrCast(shader_triangle_vert)),
+        .code_size = shader_vert.len,
+        .p_code = @ptrCast(@alignCast(shader_vert)),
     }, null);
     defer gc.dev.destroyShaderModule(vert, null);
 
     const frag = try gc.dev.createShaderModule(&.{
-        .code_size = shader_triangle_frag.len,
-        .p_code = @alignCast(@ptrCast(shader_triangle_frag)),
+        .code_size = shader_frag.len,
+        .p_code = @ptrCast(@alignCast(shader_frag)),
     }, null);
     defer gc.dev.destroyShaderModule(frag, null);
 
@@ -503,7 +502,7 @@ fn createPipeline(
 
     const piasci = vk.PipelineInputAssemblyStateCreateInfo{
         .topology = .triangle_list,
-        .primitive_restart_enable = vk.FALSE,
+        .primitive_restart_enable = .false,
     };
 
     const pvsci = vk.PipelineViewportStateCreateInfo{
@@ -514,12 +513,12 @@ fn createPipeline(
     };
 
     const prsci = vk.PipelineRasterizationStateCreateInfo{
-        .depth_clamp_enable = vk.FALSE,
-        .rasterizer_discard_enable = vk.FALSE,
+        .depth_clamp_enable = .false,
+        .rasterizer_discard_enable = .false,
         .polygon_mode = .fill,
         .cull_mode = .{ .back_bit = true },
         .front_face = .clockwise,
-        .depth_bias_enable = vk.FALSE,
+        .depth_bias_enable = .false,
         .depth_bias_constant_factor = 0,
         .depth_bias_clamp = 0,
         .depth_bias_slope_factor = 0,
@@ -528,14 +527,14 @@ fn createPipeline(
 
     const pmsci = vk.PipelineMultisampleStateCreateInfo{
         .rasterization_samples = .{ .@"1_bit" = true },
-        .sample_shading_enable = vk.FALSE,
+        .sample_shading_enable = .false,
         .min_sample_shading = 1,
-        .alpha_to_coverage_enable = vk.FALSE,
-        .alpha_to_one_enable = vk.FALSE,
+        .alpha_to_coverage_enable = .false,
+        .alpha_to_one_enable = .false,
     };
 
     const pcbas = vk.PipelineColorBlendAttachmentState{
-        .blend_enable = vk.FALSE,
+        .blend_enable = .false,
         .src_color_blend_factor = .one,
         .dst_color_blend_factor = .zero,
         .color_blend_op = .add,
@@ -546,7 +545,7 @@ fn createPipeline(
     };
 
     const pcbsci = vk.PipelineColorBlendStateCreateInfo{
-        .logic_op_enable = vk.FALSE,
+        .logic_op_enable = .false,
         .logic_op = .copy,
         .attachment_count = 1,
         .p_attachments = @ptrCast(&pcbas),
@@ -581,13 +580,7 @@ fn createPipeline(
     };
 
     var pipeline: vk.Pipeline = undefined;
-    _ = try gc.dev.createGraphicsPipelines(
-        .null_handle,
-        1,
-        @ptrCast(&gpci),
-        null,
-        @ptrCast(&pipeline),
-    );
+    _ = try gc.dev.createGraphicsPipelines(.null_handle, (&gpci)[0..1], null, (&pipeline)[0..1]);
     return pipeline;
 }
 

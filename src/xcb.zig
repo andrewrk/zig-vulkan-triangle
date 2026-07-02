@@ -1,19 +1,19 @@
-extern "xcb" fn xcb_connect(displayname: ?[*:0]const u8, screenp: *c_int) callconv(.C) ?*connection_t;
+extern "xcb" fn xcb_connect(displayname: ?[*:0]const u8, screenp: *c_int) callconv(.c) ?*connection_t;
 pub const connect = xcb_connect;
 
-extern "xcb" fn xcb_get_setup(c: *connection_t) callconv(.C) *const xcb_setup_t;
+extern "xcb" fn xcb_get_setup(c: *connection_t) callconv(.c) *const xcb_setup_t;
 pub const get_setup = xcb_get_setup;
 
-extern "xcb" fn xcb_connection_has_error(c: *connection_t) callconv(.C) c_int;
+extern "xcb" fn xcb_connection_has_error(c: *connection_t) callconv(.c) c_int;
 pub const connection_has_error = xcb_connection_has_error;
 
-extern "xcb" fn xcb_setup_roots_iterator(R: *const xcb_setup_t) callconv(.C) xcb_screen_iterator_t;
+extern "xcb" fn xcb_setup_roots_iterator(R: *const xcb_setup_t) callconv(.c) xcb_screen_iterator_t;
 pub const setup_roots_iterator = xcb_setup_roots_iterator;
 
-extern "xcb" fn xcb_screen_next(i: *xcb_screen_iterator_t) callconv(.C) void;
+extern "xcb" fn xcb_screen_next(i: *xcb_screen_iterator_t) callconv(.c) void;
 pub const screen_next = xcb_screen_next;
 
-extern "xcb" fn xcb_generate_id(c: *connection_t) callconv(.C) u32;
+extern "xcb" fn xcb_generate_id(c: *connection_t) callconv(.c) u32;
 pub const generate_id = xcb_generate_id;
 
 extern "xcb" fn xcb_create_window(
@@ -30,14 +30,14 @@ extern "xcb" fn xcb_create_window(
     visual: visualid_t,
     value_mask: u32,
     value_list: ?*const anyopaque,
-) callconv(.C) xcb_void_cookie_t;
+) callconv(.c) xcb_void_cookie_t;
 pub const create_window = xcb_create_window;
 
-pub const wait_for_event = @extern(*const fn (c: *connection_t) callconv(.C) ?*generic_event_t, .{
+pub const wait_for_event = @extern(*const fn (c: *connection_t) callconv(.c) ?*generic_event_t, .{
     .name = "xcb_wait_for_event",
     .library_name = "xcb",
 });
-pub const poll_for_event = @extern(*const fn (c: *connection_t) callconv(.C) ?*generic_event_t, .{
+pub const poll_for_event = @extern(*const fn (c: *connection_t) callconv(.c) ?*generic_event_t, .{
     .name = "xcb_poll_for_event",
     .library_name = "xcb",
 });
@@ -50,7 +50,7 @@ extern "xcb" fn xcb_intern_atom_reply(
     c: *connection_t,
     cookie: intern_atom_cookie_t,
     e: ?**xcb_generic_error_t,
-) callconv(.C) ?*intern_atom_reply_t;
+) callconv(.c) ?*intern_atom_reply_t;
 pub const intern_atom_reply = xcb_intern_atom_reply;
 
 extern "xcb" fn xcb_change_property(
@@ -62,10 +62,10 @@ extern "xcb" fn xcb_change_property(
     format: u8,
     data_len: u32,
     data: ?*const anyopaque,
-) callconv(.C) xcb_void_cookie_t;
+) callconv(.c) xcb_void_cookie_t;
 pub const change_property = xcb_change_property;
 
-extern "xcb" fn xcb_map_window(c: *connection_t, window: window_t) callconv(.C) xcb_void_cookie_t;
+extern "xcb" fn xcb_map_window(c: *connection_t, window: window_t) callconv(.c) xcb_void_cookie_t;
 pub const map_window = xcb_map_window;
 
 pub const InternAtomFn = fn (
@@ -73,13 +73,13 @@ pub const InternAtomFn = fn (
     only_if_exists: u8,
     name_len: u16,
     name: [*:0]const u8,
-) callconv(.C) intern_atom_cookie_t;
+) callconv(.c) intern_atom_cookie_t;
 
 pub const InternAtomReplyFn = fn (
     c: *connection_t,
     cookie: intern_atom_cookie_t,
     e: ?**xcb_generic_error_t,
-) callconv(.C) *intern_atom_reply_t;
+) callconv(.c) *intern_atom_reply_t;
 
 pub const connection_t = opaque {};
 pub const keycode_t = u8;

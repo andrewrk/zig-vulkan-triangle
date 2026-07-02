@@ -1,44 +1,19 @@
 const std = @import("std");
 const vk = @import("vulkan");
 const Allocator = std.mem.Allocator;
-const GraphicsContext = @This();
+const Graphics = @This();
 
 const required_device_extensions = [_][*:0]const u8{vk.extensions.khr_swapchain.name};
 
-/// To construct base, instance and device wrappers for vulkan-zig, you need to pass a list of 'apis' to it.
-const apis: []const vk.ApiInfo = &.{
-    // You can either add invidiual functions by manually creating an 'api'
-    .{
-        .base_commands = .{
-            .createInstance = true,
-            .enumerateInstanceLayerProperties = true,
-        },
-        .instance_commands = .{
-            .createDevice = true,
-            .createXcbSurfaceKHR = true,
-        },
-    },
-    // Or you can add entire feature sets or extensions
-    vk.features.version_1_0,
-    vk.extensions.khr_surface,
-    vk.extensions.khr_swapchain,
-    vk.extensions.ext_debug_utils,
-};
-
-/// Next, pass the `apis` to the wrappers to create dispatch tables.
-const BaseDispatch = vk.BaseWrapper(apis);
-const InstanceDispatch = vk.InstanceWrapper(apis);
-const DeviceDispatch = vk.DeviceWrapper(apis);
-
 // Also create some proxying wrappers, which also have the respective handles
-const Instance = vk.InstanceProxy(apis);
-const Device = vk.DeviceProxy(apis);
+const Instance = vk.InstanceProxy;
+const Device = vk.DeviceProxy;
 
-pub const CommandBuffer = vk.CommandBufferProxy(apis);
+pub const CommandBuffer = vk.CommandBufferProxy;
 
 allocator: Allocator,
 
-vkb: BaseDispatch,
+vkb: vk.BaseWrapper,
 
 instance: Instance,
 surface: vk.SurfaceKHR,
@@ -63,17 +38,17 @@ pub fn init(
     connection: *vk.xcb_connection_t,
     window: vk.xcb_window_t,
     enable_validation_layers: bool,
-) !GraphicsContext {
-    var self: GraphicsContext = undefined;
+) !Graphics {
+    var self: Graphics = undefined;
     self.allocator = allocator;
-    self.vkb = try BaseDispatch.load(vkGetInstanceProcAddr);
+    self.vkb = vk.BaseWrapper.load(vkGetInstanceProcAddr);
 
     const app_info: vk.ApplicationInfo = .{
         .p_application_name = app_name,
-        .application_version = vk.makeApiVersion(0, 0, 0, 0),
+        .application_version = @bitCast(vk.makeApiVersion(0, 0, 0, 0)),
         .p_engine_name = app_name,
-        .engine_version = vk.makeApiVersion(0, 0, 0, 0),
-        .api_version = vk.API_VERSION_1_2,
+        .engine_version = @bitCast(vk.makeApiVersion(0, 0, 0, 0)),
+        .api_version = @bitCast(vk.API_VERSION_1_3),
     };
 
     var extension_names_buffer: [3][*:0]const u8 = undefined;
@@ -99,9 +74,9 @@ pub fn init(
         .pp_enabled_layer_names = enabled_layers.ptr,
     }, null);
 
-    const vki = try allocator.create(InstanceDispatch);
+    const vki = try allocator.create(vk.InstanceWrapper);
     errdefer allocator.destroy(vki);
-    vki.* = try InstanceDispatch.load(instance, self.vkb.dispatch.vkGetInstanceProcAddr);
+    vki.* = vk.InstanceWrapper.load(instance, self.vkb.dispatch.vkGetInstanceProcAddr.?);
     self.instance = Instance.init(instance, vki);
     errdefer self.instance.destroyInstance(null);
 
@@ -130,9 +105,9 @@ pub fn init(
 
     const dev = try initializeCandidate(self.instance, candidate);
 
-    const vkd = try allocator.create(DeviceDispatch);
+    const vkd = try allocator.create(vk.DeviceWrapper);
     errdefer allocator.destroy(vkd);
-    vkd.* = try DeviceDispatch.load(dev, self.instance.wrapper.dispatch.vkGetDeviceProcAddr);
+    vkd.* = vk.DeviceWrapper.load(dev, self.instance.wrapper.dispatch.vkGetDeviceProcAddr.?);
     self.dev = Device.init(dev, vkd);
     errdefer self.dev.destroyDevice(null);
 
@@ -144,7 +119,7 @@ pub fn init(
     return self;
 }
 
-pub fn deinit(self: GraphicsContext) void {
+pub fn deinit(self: Graphics) void {
     self.instance.destroyDebugUtilsMessengerEXT(self.debug_messenger, null);
     self.dev.destroyDevice(null);
     self.instance.destroySurfaceKHR(self.surface, null);
@@ -155,11 +130,11 @@ pub fn deinit(self: GraphicsContext) void {
     self.allocator.destroy(self.instance.wrapper);
 }
 
-pub fn deviceName(self: *const GraphicsContext) []const u8 {
+pub fn deviceName(self: *const Graphics) []const u8 {
     return std.mem.sliceTo(&self.props.device_name, 0);
 }
 
-pub fn findMemoryTypeIndex(self: GraphicsContext, memory_type_bits: u32, flags: vk.MemoryPropertyFlags) !u32 {
+pub fn findMemoryTypeIndex(self: Graphics, memory_type_bits: u32, flags: vk.MemoryPropertyFlags) !u32 {
     for (self.mem_props.memory_types[0..self.mem_props.memory_type_count], 0..) |mem_type, i| {
         if (memory_type_bits & (@as(u32, 1) << @truncate(i)) != 0 and mem_type.property_flags.contains(flags)) {
             return @truncate(i);
@@ -169,7 +144,7 @@ pub fn findMemoryTypeIndex(self: GraphicsContext, memory_type_bits: u32, flags: 
     return error.NoSuitableMemoryType;
 }
 
-pub fn allocate(self: GraphicsContext, requirements: vk.MemoryRequirements, flags: vk.MemoryPropertyFlags) !vk.DeviceMemory {
+pub fn allocate(self: Graphics, requirements: vk.MemoryRequirements, flags: vk.MemoryPropertyFlags) !vk.DeviceMemory {
     return try self.dev.allocateMemory(&.{
         .allocation_size = requirements.size,
         .memory_type_index = try self.findMemoryTypeIndex(requirements.memory_type_bits, flags),
@@ -292,7 +267,7 @@ fn allocateQueues(instance: Instance, pdev: vk.PhysicalDevice, allocator: Alloca
             graphics_family = family;
         }
 
-        if (present_family == null and (try instance.getPhysicalDeviceSurfaceSupportKHR(pdev, family, surface)) == vk.TRUE) {
+        if (present_family == null and (try instance.getPhysicalDeviceSurfaceSupportKHR(pdev, family, surface)) == .true) {
             present_family = family;
         }
     }
@@ -350,8 +325,8 @@ fn debugCallback(
     b: {
         const msg = (p_callback_data orelse break :b).p_message orelse break :b;
         std.log.scoped(.validation).warn("{s}", .{msg});
-        return vk.FALSE;
+        return .false;
     }
     std.log.scoped(.validation).warn("unrecognized validation layer debug message", .{});
-    return vk.FALSE;
+    return .false;
 }
