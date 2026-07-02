@@ -3,9 +3,6 @@ const config = @import("config");
 const std = @import("std");
 const spirv = std.spirv;
 
-const v4u8 = @Vector(4, u8);
-const v2u16 = @Vector(2, u16);
-const v2i16 = @Vector(2, i16);
 const v2f32 = @Vector(2, f32);
 const v3f32 = @Vector(3, f32);
 const v4f32 = @Vector(4, f32);
