@@ -90,7 +90,6 @@ pub fn init(
                 .general_bit_ext = true,
                 .validation_bit_ext = true,
                 .performance_bit_ext = true,
-                .device_address_binding_bit_ext = true,
             },
             .pfn_user_callback = debugCallback,
         }, null);
