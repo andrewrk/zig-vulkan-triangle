@@ -41,6 +41,7 @@ pub fn init(
 ) !Graphics {
     var self: Graphics = undefined;
     self.allocator = allocator;
+    self.debug_messenger = .null_handle;
     self.vkb = vk.BaseWrapper.load(vkGetInstanceProcAddr);
 
     const app_info: vk.ApplicationInfo = .{
@@ -119,7 +120,9 @@ pub fn init(
 }
 
 pub fn deinit(self: Graphics) void {
-    self.instance.destroyDebugUtilsMessengerEXT(self.debug_messenger, null);
+    if (self.debug_messenger != .null_handle) {
+        self.instance.destroyDebugUtilsMessengerEXT(self.debug_messenger, null);
+    }
     self.dev.destroyDevice(null);
     self.instance.destroySurfaceKHR(self.surface, null);
     self.instance.destroyInstance(null);
